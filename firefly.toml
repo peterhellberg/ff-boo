@@ -1,0 +1,7 @@
+app_id = "boo"
+app_name = "boo"
+author_id = "peter"
+author_name = "Peter Hellberg"
+
+[files]
+font = { path = "eg_6x12.fff" }
