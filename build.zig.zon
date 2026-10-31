@@ -1,0 +1,12 @@
+.{
+    .name = .peter_boo,
+    .fingerprint = 0xaaf8abc10a5a22d5,
+    .version = "0.0.0",
+    .paths = .{""},
+    .dependencies = .{
+        .ff = .{
+            .url = "https://github.com/peterhellberg/ff/archive/refs/tags/v0.2.0.zip",
+            .hash = "ff-0.2.0-dm5vtG40AQDl7mXoc1Fx-NFIUaB-bUIyUhvZR5RfXXyk",
+        },
+    },
+}
