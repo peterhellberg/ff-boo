@@ -19,7 +19,7 @@ const BADGE_SHEPHERD: ff.Badge = 1;
 
 pub const DT: f32 = 1.0 / 60.0;
 pub const SIZE_SPACE = 3;
-pub const SIZE_PLAYER = 21;
+pub const SIZE_PLAYER = 20;
 pub const NUM_STARS = 128;
 pub const NUM_GHOSTS_MAX = 8;
 
