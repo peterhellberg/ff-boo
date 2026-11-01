@@ -15,7 +15,10 @@ pub fn build(b: *std.Build) !void {
         }),
     });
 
-    exe.root_module.addImport("ff", b.dependency("ff", .{}).module("ff"));
+    exe.root_module.addImport(
+        "ff",
+        b.dependency("ff", .{}).module("ff"),
+    );
 
     exe.entry = .disabled;
     exe.rdynamic = true;
