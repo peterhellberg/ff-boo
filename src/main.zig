@@ -792,6 +792,88 @@ fn hash2(x: u32, y: u32) u32 {
     return h ^ (h >> 16);
 }
 
+/// Draws brick mortar lines + speckles into a local rect of
+/// `long` x `cross` pixels, where `long` is the brick-row direction.
+/// Draws brick mortar + speckles into a `w` x `h` rect at (px, py).
+/// Rows of bricks run along the "long" axis: width for horizontal walls,
+/// height for vertical walls (axes swapped via comptime mapper).
+fn drawBrickPattern(px: i32, py: i32, w: i32, h: i32, seed: u32, comptime horizontal: bool) void {
+    const brick_len: i32 = 16;
+    const row_h: i32 = 8;
+
+    // "along" = brick direction, "across" = row direction.
+    const long: i32 = if (horizontal) w else h;
+    const cross: i32 = if (horizontal) h else w;
+
+    // Comptime axis mapper: map(along, across) -> screen (x, y).
+    const M = if (horizontal) struct {
+        fn x(along: i32, _: i32) i32 {
+            return along;
+        }
+        fn y(_: i32, across: i32) i32 {
+            return across;
+        }
+    } else struct {
+        fn x(_: i32, across: i32) i32 {
+            return across;
+        }
+        fn y(along: i32, _: i32) i32 {
+            return along;
+        }
+    };
+
+    // Mortar rows + vertical joints.
+    var row: i32 = 0;
+    while (row < cross) : (row += row_h) {
+        if (row > 0) {
+            draw.line(
+                M.x(0, row) + px,
+                M.y(0, row) + py,
+                M.x(long - 1, row) + px,
+                M.y(long - 1, row) + py,
+                .{ .color = .gray },
+            );
+        }
+        const stagger = if (@mod(@divTrunc(row, row_h), 2) == 1) brick_len / 2 else 0;
+        var joint = stagger;
+        while (joint < long) : (joint += brick_len) {
+            if (joint == 0) continue;
+            draw.line(
+                M.x(joint, row) + px,
+                M.y(joint, row) + py,
+                M.x(joint, @min(row + row_h, cross) - 1) + px,
+                M.y(joint, @min(row + row_h, cross) - 1) + py,
+                .{ .color = .gray },
+            );
+        }
+    }
+
+    // Speckles: iterate bricks, 2-3 deterministic dots per brick.
+    var brow: i32 = 0;
+    while (brow < cross) : (brow += row_h) {
+        var bcol: i32 = 0;
+        while (bcol < long) : (bcol += brick_len) {
+            const hsh = hash2(
+                seed +% @as(u32, @bitCast(bcol)),
+                @as(u32, @bitCast(brow)),
+            );
+            const n_specks = 2 + (hsh % 2);
+            var s: u32 = 0;
+            while (s < n_specks) : (s += 1) {
+                const hx = hash2(hsh, s *% 2 +% 1);
+                const hy = hash2(hsh, s *% 2 +% 2);
+                const along = bcol + @as(i32, @intCast(hx % @as(u32, @intCast(brick_len - 1))));
+                const across = brow + @as(i32, @intCast(hy % @as(u32, @intCast(row_h - 1))));
+
+                if (along < long and across < cross) {
+                    const color: ff.Color = if (hx & 1 == 0) .gray else .black;
+                    draw.Point(.new(M.x(along, across) + px, M.y(along, across) + py), color);
+                }
+            }
+        }
+    }
+}
+
 fn renderWalls() void {
     for (walls[0..wall_count]) |w| {
         if (!cam.intersects(w)) continue;
@@ -818,93 +900,14 @@ fn renderWalls() void {
         const bh = w.size.height - 2;
         if (bw <= 0 or bh <= 0) continue;
 
-        const brick_len: i32 = 16;
-        const row_h: i32 = 8;
-
         // World-space seed so the pattern is stable across frames AND
         // continuous across adjacent wall segments.
         const seed: u32 = @bitCast(w.point.x *% 31 +% w.point.y *% 733);
 
         if (horizontal) {
-            var row: i32 = 0;
-            while (row < bh) : (row += row_h) {
-                if (row > 0) {
-                    draw.line(bx, by + row, bx + bw - 1, by + row, .{ .color = .gray });
-                }
-                const stagger = if (@mod(@divTrunc(row, row_h), 2) == 1) brick_len / 2 else 0;
-                var joint = stagger;
-                while (joint < bw) : (joint += brick_len) {
-                    if (joint == 0) continue;
-                    draw.line(bx + joint, by + row, bx + joint, by + @min(row + row_h, bh) - 1, .{ .color = .gray });
-                }
-            }
-
-            // Speckles: iterate bricks (not pixels) so each brick gets
-            // 2-3 deterministic dots.
-            var brow: i32 = 0;
-            while (brow < bh) : (brow += row_h) {
-                var bcol: i32 = 0;
-                while (bcol < bw) : (bcol += brick_len) {
-                    const h = hash2(
-                        seed +% @as(u32, @bitCast(bcol)),
-                        @as(u32, @bitCast(brow)),
-                    );
-                    const n_specks = 2 + (h % 2); // 2 or 3 specks per brick
-                    var s: u32 = 0;
-                    while (s < n_specks) : (s += 1) {
-                        const hx = hash2(h, s *% 2 +% 1);
-                        const hy = hash2(h, s *% 2 +% 2);
-                        const sx = bcol + @as(i32, @intCast(hx % @as(u32, @intCast(brick_len - 1))));
-                        const sy = brow + @as(i32, @intCast(hy % @as(u32, @intCast(row_h - 1))));
-
-                        if (sx < bw and sy < bh) {
-                            // Alternate light/dark specks for grit.
-                            const color: ff.Color = if (hx & 1 == 0) .gray else .black;
-                            draw.Point(.new(bx + sx, by + sy), color);
-                        }
-                    }
-                }
-            }
+            drawBrickPattern(bx, by, bw, bh, seed, true);
         } else {
-            var row: i32 = 0;
-            while (row < bw) : (row += row_h) {
-                if (row > 0) {
-                    draw.line(bx + row, by, bx + row, by + bh - 1, .{ .color = .gray });
-                }
-                const stagger = if (@mod(@divTrunc(row, row_h), 2) == 1) brick_len / 2 else 0;
-                var joint = stagger;
-                while (joint < bh) : (joint += brick_len) {
-                    if (joint == 0) continue;
-                    draw.line(bx + row, by + joint, bx + @min(row + row_h, bw) - 1, by + joint, .{ .color = .gray });
-                }
-            }
-
-            // Speckles, axes swapped: rows run along the width, bricks along
-            // the height.
-            var brow: i32 = 0;
-            while (brow < bw) : (brow += row_h) {
-                var bcol: i32 = 0;
-                while (bcol < bh) : (bcol += brick_len) {
-                    const h = hash2(
-                        seed +% @as(u32, @bitCast(bcol)),
-                        @as(u32, @bitCast(brow)),
-                    );
-                    const n_specks = 2 + (h % 2); // 2 or 3 specks per brick
-                    var s: u32 = 0;
-                    while (s < n_specks) : (s += 1) {
-                        const hx = hash2(h, s *% 2 +% 1);
-                        const hy = hash2(h, s *% 2 +% 2);
-                        const sx = brow + @as(i32, @intCast(hx % @as(u32, @intCast(row_h - 1))));
-                        const sy = bcol + @as(i32, @intCast(hy % @as(u32, @intCast(brick_len - 1))));
-
-                        if (sx < bw and sy < bh) {
-                            // Alternate light/dark specks for grit.
-                            const color: ff.Color = if (hx & 1 == 0) .gray else .black;
-                            draw.Point(.new(bx + sx, by + sy), color);
-                        }
-                    }
-                }
-            }
+            drawBrickPattern(bx, by, bw, bh, seed, false);
         }
     }
 }
