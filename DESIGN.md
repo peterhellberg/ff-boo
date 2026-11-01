@@ -30,7 +30,7 @@ losing a ghost by walking too far away from it.
 | `boo/Star.zig` | Unchanged, except that stars fade out as dawn progresses. |
 | `boo/Cheats.zig` | Renamed `preyLines` to `followLines`. Other cheats keep working. |
 | `boo/Sound.zig` | Used as-is for the event blips. |
-| `boo/Player.zig` | Keeps movement, bouncing, eyes and rendering. The size-growth fields (`f`, `SIZE_PLAYER_MAX`) are removed because nothing eats or grows any more. |
+| `boo/Player.zig` | Keeps movement, eyes and rendering, plus wall collision and sliding. The size-growth fields (`f`, `SIZE_PLAYER_MAX`) and the edge bounce are removed because nothing eats or grows any more. |
 | `boo/Enemy.zig` | Repurposed and renamed to `boo/Ghost.zig`. The size-based predator/prey logic is replaced by wander/follow/buried behaviour. |
 | `src/main.zig` | Owns the state machine, level generation, graves, timer/dawn, scoring, persistence and HUD. |
 
@@ -86,7 +86,10 @@ var best_score: i32 = 0;
 ### 5.1 Shepherd (`Player.zig`)
 
 - Movement stays as implemented: analog pad with deadzone 300, speed 2.5,
-  friction 0.9985, bounce off `SPACE`.
+  friction 0.9985.
+- Moves one axis at a time. If the next position leaves `SPACE` or overlaps a
+  wall, that axis stops and the other still moves, so the shepherd slides along
+  walls instead of sticking. The old edge bounce is gone.
 - `d` stays at `SIZE_PLAYER` (21) and no longer shrinks.
 - Rendering stays as implemented: yellow body, orange outline, trailing aura
   and eyes that point along velocity.
@@ -122,6 +125,10 @@ Constants:
 `FOLLOW_RADIUS < LOSE_RADIUS` is the hysteresis that stops a ghost from
 flickering between wander and follow at the boundary.
 
+Ghosts ignore walls and pass straight through them. That is deliberate: it
+keeps the follow behaviour free of pathfinding, and it is why the shepherd is
+the only thing walls block.
+
 ### 5.3 Grave
 
 A plain struct in `main.zig`, one per ghost, indexed the same way:
@@ -139,6 +146,28 @@ const Grave = struct {
   the stone. This is how the player knows which grave belongs to which ghost.
 - A filled grave drops the marker and draws a small `.light_green` cross.
 
+### 5.4 Walls
+
+Static axis-aligned rectangles in `main.zig`, generated per level:
+
+```zig
+const MAX_WALLS = 8;
+var walls: [MAX_WALLS]ff.Rect;
+var wall_count: usize;
+```
+
+- Count: `@min(4 + level / 2, 8)` -> 4 on level 1, 8 from level 8.
+- Each wall is 48-119 px long and 10 px thick, horizontal or vertical, at
+  least 24 px from the world edge.
+- Rejected when it comes within 64 px of the shepherd's start, within 32 px of
+  any grave, or within 20 px of another wall. 400 attempts, then generation
+  stops early, so it can never hang.
+- Drawn as a `.dark_gray` rect with a `.gray` outline and brick seams every
+  14 px.
+- Collision is circle-vs-rect: the closest point on the rect to the shepherd's
+  centre must stay at least `SIZE_PLAYER / 2` away. `hitsWall` is the shared
+  helper; ghosts never call it.
+
 ## 6. Ghost behaviour
 
 This is the only non-trivial logic in the game.
@@ -148,8 +177,10 @@ This is the only non-trivial logic in the game.
 - On spawn, and every 60-180 frames (`Random.mod`), pick a new random unit
   direction.
 - Move at `WANDER_SPEED`.
-- Bounce off the four world edges, the same way `Enemy.bounce` does today.
-- A wandering ghost has a thin `.dark_blue` outline.
+- Bounce off the four world edges, ignoring walls.
+- A wandering ghost has a thin `.dark_blue` outline; a following ghost gets a
+  2 px `.white` outline so it reads as "caught" without reusing the shepherd's
+  yellow.
 - Transition to follow when `distance(ghost, player) < FOLLOW_RADIUS`.
 
 ### 6.2 Follow
@@ -234,9 +265,11 @@ if (ghost.pos.sub(graves[i].pos).len() < BURY_RADIUS) {
   - Reject a candidate while the camera sees it (no ghost starts on screen) or
     while it is closer than 120 px to its own grave.
   - Give up after 100 tries and accept the last candidate.
-  - Assign `GHOST_COLORS[i]` from a fixed table:
-    `.white, .cyan, .light_blue, .light_green, .light_gray, .green, .blue,
-    .red`. Yellow and orange are reserved for the shepherd.
+  - Assign `GHOST_COLORS[i]` from a fixed table, most distinct first:
+    `.white, .red, .cyan, .light_green, .blue, .purple, .green, .light_blue`.
+    Yellow and orange are reserved for the shepherd.
+- Walls: `@min(4 + level / 2, 8)` rects placed after graves, using the rules in
+  5.4.
 
 `ff.setSeed` is only called from `generate`, never in `boot`, so the menu stars
 still look different on each launch.
@@ -284,14 +317,14 @@ greys, amber). Dawn palette is a warm sunrise:
 | `black` (sky) | `0x131313` | `0x6E3B4E` |
 | `dark_gray` | `0x505050` | `0x7A4A5A` |
 | `gray` | `0x8D8D8D` | `0xA86A5A` |
-| `cyan` | `0xA8A8A8` | `0xD08A6A` |
+| `cyan` | `0x53C7D6` | `0x9FD0C8` |
 | `light_gray` | `0xCECECE` | `0xE0B090` |
 | `white` | `0xF2F0E5` | `0xFFF0D0` |
-| `light_blue` | `0xA8A8A8` | `0xE8A06A` |
+| `light_blue` | `0x6FA8FF` | `0xAFC4E8` |
 | `orange` | `0xF7A41D` | `0xFFB347` |
 | `dark_green` | `0xC77C03` | `0xD97B4A` |
-| `red` | `0xB4202A` | `0xC0504A` |
-| `purple` | `0x73172D` | `0x8C4A5A` |
+| `red` | `0xD04A4A` | `0xD07068` |
+| `purple` | `0x8A4FB0` | `0xB08AC0` |
 | `yellow` | `0xFFCD75` | `0xFFE08A` |
 | `light_green` | `0xA7F070` | `0xC8D890` |
 | `green` | `0x38B764` | `0x8AA070` |
@@ -308,7 +341,7 @@ applies night on entry.
   `if (@mod(i + dawn_step, 6) < dawn_step) continue;`. No alpha blending is
   needed.
 - The sun is drawn in screen space once `dawn_step >= 2`:
-  `x = 196`, `y = 150 - progress * 90`, diameter 36, fill `.orange`, stroke
+  `x = 178`, `y = 150 - progress * 90`, diameter 36, fill `.orange`, stroke
   `.yellow`, width 1.
 - A horizon line at `y = 150` in `.dark_green` sells the sunrise. It is drawn
   under the sun and over the world.
@@ -318,6 +351,7 @@ applies night on entry.
 ```
 clearScreen(.black)
 stars (faded)
+walls (culled)
 graves (culled)
 ghosts (culled, buried skipped)
 shepherd (hidden on the Over screen)
@@ -333,6 +367,22 @@ HUD:
 - Top right: `1:07` remaining, and `NIGHT 3` underneath.
 - Use the existing `text()` helper and a small `hud_buf: [32]u8` with
   `std.fmt.bufPrint`.
+
+### 9.1 Sprites and alpha
+
+Firefly can blit images with `ff.drawImage` and `ff.drawSubImage` (sprite
+sheets), loaded with `ff.loadFile(name, buf)` and declared in `firefly.toml`
+under `[files]`. Animation is just picking a different sub-rect each frame.
+
+There is **no alpha blending**. Frames are 4-bit palette indices, and `.none`
+is 100% transparent: a pixel is either drawn or skipped. An image with a
+transparent background is limited to 15 colours, and sprites index the same
+16-colour runtime palette, so the dawn shift recolours them too.
+
+The shepherd and ghosts stay procedural. Circles and triangles need no assets,
+recolour per ghost for free through the ghost's `color` field, and the eyes
+already follow velocity. Sprites would only pay off if the art needed shapes
+the primitives cannot express.
 
 ## 10. Input
 
@@ -438,11 +488,11 @@ and no sound on the menu.
 3. `Cheats.zig`: rename `preyLines` to `followLines`.
 4. `main.zig`:
    - constants, globals and the new `State` enum
-   - `Grave` and `generate`
+   - `Grave`, wall generation and `generate`
    - palette lerp and `applyPalette`
    - `Init`, `Game` (update order, separation, burial, dawn)
    - `Clear`, `Over`, `Menu`
-   - HUD, sun, stars fade
+   - HUD, sun, stars fade, walls
    - stash load/save, board/badge calls, `before_exit`
    - audio setup with `Sound.init`, `tickSound`, and the four event sounds
 5. Delete the old predator/prey code paths (`Died`, `enemyCollisions` size
@@ -451,6 +501,8 @@ and no sound on the menu.
    - `lerpHex(0x000000, 0xFFFFFF, 0.5) == 0x7F7F7F`
    - `levelMs(1) == 90_000` and `levelMs(99) == 45_000`
    - `ghostCount(1) == 4` and `ghostCount(99) == 8`
+   - `wallCount(1) == 4` and `wallCount(99) == MAX_WALLS`
+   - `pointRectDist` and `rectsOverlap` on a known rect
    - stash offsets fit the 16-byte buffer
 
 ## 14. Verification
@@ -463,6 +515,7 @@ and no sound on the menu.
   - palette steps visibly brighter as the timer runs down
   - dawn at 0:00 -> `Over` with score; `E` restarts, `N` returns to menu
   - clearing all graves -> `Clear` -> next night with more ghosts
+  - walls stop the shepherd but ghosts pass through them
   - a ghost starts following, a burial, a cleared night and dawn each play a
     short tone
 - Restart the emulator and confirm the best score/level survive via the stash.
