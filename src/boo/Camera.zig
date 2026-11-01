@@ -14,11 +14,11 @@ pub fn center(self: *Camera, point: ff.Point) void {
 }
 
 pub fn clamp(self: *Camera, space: ff.Rect) void {
-    const maxX = space.point.x + space.size.width - self.rect.size.width;
-    const maxY = space.point.y + space.size.height - self.rect.size.height;
+    const max_x = space.point.x + space.size.width - self.rect.size.width;
+    const max_y = space.point.y + space.size.height - self.rect.size.height;
 
-    self.rect.point.x = @max(space.point.x, @min(self.rect.point.x, maxX));
-    self.rect.point.y = @max(space.point.y, @min(self.rect.point.y, maxY));
+    self.rect.point.x = @max(space.point.x, @min(self.rect.point.x, max_x));
+    self.rect.point.y = @max(space.point.y, @min(self.rect.point.y, max_y));
 }
 
 pub fn screen(self: *const Camera, point: ff.Point) ff.Point {
@@ -30,10 +30,11 @@ pub fn sees(self: *const Camera, point: ff.Point) bool {
 }
 
 pub fn intersects(self: *const Camera, r: ff.Rect) bool {
-    const aMin = self.rect.min();
-    const aMax = self.rect.max();
-    const bMin = r.min();
-    const bMax = r.max();
+    const camera_right = self.rect.point.x + self.rect.size.width;
+    const camera_bottom = self.rect.point.y + self.rect.size.height;
 
-    return !(aMax.x < bMin.x or aMin.x > bMax.x or aMax.y < bMin.y or aMin.y > bMax.y);
+    const rect_right = r.point.x + r.size.width;
+    const rect_bottom = r.point.y + r.size.height;
+
+    return self.rect.point.x <= rect_right and camera_right >= r.point.x and self.rect.point.y <= rect_bottom and camera_bottom >= r.point.y;
 }
