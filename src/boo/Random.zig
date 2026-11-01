@@ -2,6 +2,8 @@
 
 const ff = @import("ff");
 
+const Random = @This();
+
 /// Uniform random value in [0, d), for any signed or unsigned integer type.
 ///
 /// Uses Lemire-style multiply-shift instead of modulo: a single 64-bit
