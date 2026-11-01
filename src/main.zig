@@ -26,7 +26,7 @@ pub const SIZE_PLAYER = 20;
 pub const NUM_STARS = 64;
 pub const NUM_GHOSTS_MAX = 8;
 
-pub const SPACE = ff.Rect.new(
+pub const SPACE: ff.Rect = .new(
     0,
     0,
     ff.width * SIZE_SPACE,
