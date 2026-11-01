@@ -280,7 +280,6 @@ const Game = struct {
 
     fn render(_: *Game) void {
         renderWorld(true);
-        renderSun();
         renderHud();
     }
 };
@@ -297,13 +296,14 @@ const Clear = struct {
 
     fn render(_: *Clear) void {
         renderWorld(true);
-        renderSun();
+        renderSunAndHills();
         renderHud();
 
-        text("NIGHT CLEARED", .new(66, 70), .white);
+        panel(60, 56, 120, 46);
+        textCentered("NIGHT CLEARED", 120, 70, .white);
 
         const b = std.fmt.bufPrint(&hud_buf, "+{d}", .{clear_bonus}) catch return;
-        text(b, .new(108, 90), .yellow);
+        textCentered(b, 120, 90, .yellow);
     }
 };
 
@@ -319,34 +319,36 @@ const Over = struct {
 
     fn render(_: *Over) void {
         renderWorld(false);
-        renderSun();
+        renderSunAndHills();
 
-        text("DAWN", .new(96, 55), .white);
-        text("THE NIGHT IS OVER", .new(60, 75), .light_gray);
+        panel(42, 40, 156, 118);
+
+        textCentered("DAWN", 120, 55, .white);
+        textCentered("THE NIGHT IS OVER", 120, 75, .light_gray);
 
         var b = std.fmt.bufPrint(&hud_buf, "SCORE {d}", .{run_score}) catch return;
-        text(b, .new(84, 95), .yellow);
+        textCentered(b, 120, 95, .yellow);
 
         b = std.fmt.bufPrint(&hud_buf, "BEST {d} N{d}", .{
             best_score,
             best_level,
         }) catch return;
-        text(b, .new(84, 107), .light_gray);
-
-        b = std.fmt.bufPrint(&hud_buf, "SOULS {d}", .{total_buried}) catch return;
-        text(b, .new(84, 119), .cyan);
+        textCentered(b, 120, 107, .light_gray);
 
         if (best_time_s > 0) {
             const t: u64 = best_time_s;
-            b = std.fmt.bufPrint(&hud_buf, "FAST {d}:{d:0>2}", .{
+            b = std.fmt.bufPrint(&hud_buf, "SOULS {d}  FAST {d}:{d:0>2}", .{
+                total_buried,
                 t / 60,
                 t % 60,
             }) catch return;
-            text(b, .new(160, 119), .cyan);
+        } else {
+            b = std.fmt.bufPrint(&hud_buf, "SOULS {d}", .{total_buried}) catch return;
         }
+        textCentered(b, 120, 119, .cyan);
 
-        text("PRESS (E) TO PLAY AGAIN!", .new(42, 132), .white);
-        text("(N) FOR MENU", .new(84, 144), .light_gray);
+        textCentered("PRESS (E) TO PLAY AGAIN!", 120, 132, .white);
+        textCentered("(N) FOR MENU", 120, 144, .light_gray);
     }
 };
 
@@ -659,6 +661,7 @@ fn filledGraves() usize {
 
 fn renderWorld(show_player: bool) void {
     renderStars();
+    renderSunAndHills();
     renderWalls();
 
     for (graves[0..ghost_count], ghosts[0..ghost_count]) |*grave, *ghost| {
@@ -725,18 +728,51 @@ fn renderStars() void {
     }
 }
 
-fn renderSun() void {
-    if (dawn_step < 2) return;
+const HORIZON_Y: i32 = 150;
 
-    const p = dawnProgress();
-    const y: i32 = @intFromFloat(150.0 - p * 90.0);
+fn renderSunAndHills() void {
+    if (dawn_step >= 2) {
+        const p = dawnProgress();
+        const cx: i32 = 178;
+        const cy: i32 = @intFromFloat(162.0 - p * 84.0);
 
-    draw.line(0, 150, ff.width, 150, .{ .color = .dark_green });
-    draw.circ(178, y, 36, .{
-        .fill_color = .orange,
-        .stroke_color = .yellow,
-        .stroke_width = 1,
+        // Rays turn slowly and reach further as the sun climbs. Alternating
+        // lengths make the turn visible, since evenly spaced rays look static.
+        const spin: f32 = @as(f32, @floatFromInt(frame)) * 0.004;
+
+        for (0..12) |i| {
+            const a = spin + @as(f32, @floatFromInt(i)) * (std.math.pi / 6.0);
+            const reach: f32 = if (i % 2 == 0) 18.0 + p * 18.0 else 8.0 + p * 8.0;
+
+            const dx = @cos(a);
+            const dy = @sin(a);
+
+            draw.line(
+                cx + @as(i32, @intFromFloat(dx * 20.0)),
+                cy + @as(i32, @intFromFloat(dy * 20.0)),
+                cx + @as(i32, @intFromFloat(dx * (20.0 + reach))),
+                cy + @as(i32, @intFromFloat(dy * (20.0 + reach))),
+                .{ .color = .orange },
+            );
+        }
+
+        draw.circ(cx - 18, cy - 18, 36, .{
+            .fill_color = .orange,
+            .stroke_color = .yellow,
+            .stroke_width = 1,
+        });
+        draw.circ(cx - 8, cy - 8, 16, .{ .fill_color = .yellow });
+    }
+
+    // Rolling hills sit on the horizon; the ground strip covers their bases.
+    draw.elli(-24, 138, 128, 36, .{ .fill_color = .purple });
+    draw.elli(74, 132, 168, 44, .{ .fill_color = .purple });
+    draw.elli(186, 138, 120, 34, .{ .fill_color = .purple });
+
+    draw.rect(0, HORIZON_Y, ff.width, ff.height - HORIZON_Y, .{
+        .fill_color = .dark_blue,
     });
+    draw.line(0, HORIZON_Y, ff.width, HORIZON_Y, .{ .color = .dark_green });
 }
 
 fn renderHud() void {
@@ -904,6 +940,19 @@ fn writeU32(b: []u8, v: u32) void {
 
 pub fn text(t: ff.String, p: ff.Point, c: ff.Color) void {
     draw.Text(t, fff, p, c);
+}
+
+/// Opaque rounded panel so overlay text stays readable over the board.
+fn panel(x: i32, y: i32, w: i32, h: i32) void {
+    draw.rrect(x, y, w, h, 6, 6, .{
+        .fill_color = .black,
+        .stroke_color = .gray,
+        .stroke_width = 1,
+    });
+}
+
+fn textCentered(t: ff.String, cx: i32, y: i32, c: ff.Color) void {
+    text(t, .new(cx - @as(i32, @intCast(t.len)) * 3, y), c);
 }
 
 var cheats: Cheats = .{};
