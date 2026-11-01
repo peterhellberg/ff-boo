@@ -1188,7 +1188,11 @@ fn loadBest() void {
     best_level = @max(1, readU16(s[4..6]));
     best_score = @intCast(readU16(s[6..8]));
     total_buried = readU32(s[8..12]);
-    if (s.len >= 14) best_time_s = readU16(s[12..14]);
+
+    best_time_s = 0;
+    if (s.len >= 14) {
+        best_time_s = readU16(s[12..14]);
+    }
 }
 
 fn saveBest() void {
