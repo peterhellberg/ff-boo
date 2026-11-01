@@ -648,32 +648,11 @@ fn addWall(r: ff.Rect) void {
     if (wall_count >= walls.len) return;
 
     for (graves[0..ghost_count]) |g| {
-        if (pointRectDist(g.pos, r) < 32.0) return;
+        if (pointRectDistSq(g.pos, r) < 1024.0) return;
     }
 
     walls[wall_count] = r;
     wall_count += 1;
-}
-
-fn pointRectDist(p: ff.Point, r: ff.Rect) f32 {
-    const min = r.min();
-    const max = r.max();
-
-    const px: f32 = @floatFromInt(p.x);
-    const py: f32 = @floatFromInt(p.y);
-    const cx = @max(
-        @as(f32, @floatFromInt(min.x)),
-        @min(px, @as(f32, @floatFromInt(max.x))),
-    );
-    const cy = @max(
-        @as(f32, @floatFromInt(min.y)),
-        @min(py, @as(f32, @floatFromInt(max.y))),
-    );
-
-    const dx = px - cx;
-    const dy = py - cy;
-
-    return @sqrt(dx * dx + dy * dy);
 }
 
 fn pointRectDistSq(p: ff.Point, r: ff.Rect) f32 {
@@ -1282,11 +1261,12 @@ comptime {
     {
         const r = ff.Rect.new(100, 100, 20, 20);
 
-        if (@abs(pointRectDist(.new(110, 110), r)) > 0.001) {
-            @compileError("a point inside a wall should be at distance 0");
+        if (pointRectDistSq(.new(110, 110), r) != 0.0) {
+            @compileError("a point inside a wall should have squared distance 0");
         }
-        if (@abs(pointRectDist(.new(90, 110), r) - 10.0) > 0.001) {
-            @compileError("a point left of a wall should be 10 px away");
+
+        if (@abs(pointRectDistSq(.new(90, 110), r) - 100.0) > 0.001) {
+            @compileError("a point left of a wall should be 10 px away (squared distance 100)");
         }
     }
     if (@sizeOf(@TypeOf(stash_buf)) != 16) @compileError("stash layout changed");
