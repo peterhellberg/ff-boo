@@ -75,9 +75,22 @@ var ghost_count: usize = 0;
 var ghosts: [NUM_GHOSTS_MAX]Ghost = @splat(.{});
 var graves: [NUM_GHOSTS_MAX]Grave = @splat(.{});
 
-const MAX_WALLS = 8;
+const MAX_WALLS = (MAZE_COLS - 1) * MAZE_ROWS + MAZE_COLS * (MAZE_ROWS - 1);
 var wall_count: usize = 0;
 var walls: [MAX_WALLS]ff.Rect = @splat(.{});
+
+// Maze grid: 12 x 8 cells of 60 px fills the 720 x 480 world exactly.
+const MAZE_COLS = 12;
+const MAZE_ROWS = 8;
+const CELL: i32 = 60;
+const WALL_THICKNESS: i32 = 10;
+const BRAID_PERCENT: u32 = 25;
+
+// Start in the middle of a cell so no wall can spawn on top of the shepherd.
+const START = ff.Point.new(
+    CELL * @as(i32, @intCast(MAZE_COLS / 2)) + @divTrunc(CELL, 2),
+    CELL * @as(i32, @intCast(MAZE_ROWS / 2)) + @divTrunc(CELL, 2),
+);
 
 var stars: [NUM_STARS]Star = @splat(.{});
 
@@ -212,6 +225,8 @@ const Menu = struct {
 const Init = struct {
     fn update(_: *Init) void {
         player = .{};
+        player.pos = START;
+        player.vec = START.vec();
 
         cam.center(player.pos);
         cam.clamp(SPACE);
@@ -423,10 +438,7 @@ fn generate() void {
         SPACE.size.width - margin * 2,
         SPACE.size.height - margin * 2,
     );
-    const center = SPACE.min().add(.new(
-        @divTrunc(SPACE.size.width, 2),
-        @divTrunc(SPACE.size.height, 2),
-    ));
+    const center = START;
 
     for (0..ghost_count) |i| {
         var p = Random.pos(inner).add(.new(margin, margin));
@@ -447,51 +459,100 @@ fn generate() void {
 fn generateWalls() void {
     wall_count = 0;
 
-    var tries: u16 = 0;
-    while (wall_count < wallCount(level) and tries < 400) : (tries += 1) {
-        const r = randomWall();
+    var v_wall: [MAZE_COLS][MAZE_ROWS]bool = @splat(@splat(true));
+    var h_wall: [MAZE_COLS][MAZE_ROWS]bool = @splat(@splat(true));
 
-        if (!wallSpotOk(r)) continue;
+    // Randomized depth-first search carves a perfect maze, then braiding
+    // removes some walls so it has loops instead of dead ends.
+    var visited: [MAZE_COLS * MAZE_ROWS]bool = @splat(false);
+    var stack: [MAZE_COLS * MAZE_ROWS]usize = undefined;
 
-        walls[wall_count] = r;
-        wall_count += 1;
+    var sp: usize = 1;
+    visited[0] = true;
+    stack[0] = 0;
+
+    while (sp > 0) {
+        const cur = stack[sp - 1];
+        const cx = cur % MAZE_COLS;
+        const cy = cur / MAZE_COLS;
+
+        var next: [4]usize = undefined;
+        var n: usize = 0;
+
+        if (cx > 0 and !visited[cur - 1]) {
+            next[n] = cur - 1;
+            n += 1;
+        }
+        if (cx + 1 < MAZE_COLS and !visited[cur + 1]) {
+            next[n] = cur + 1;
+            n += 1;
+        }
+        if (cy > 0 and !visited[cur - MAZE_COLS]) {
+            next[n] = cur - MAZE_COLS;
+            n += 1;
+        }
+        if (cy + 1 < MAZE_ROWS and !visited[cur + MAZE_COLS]) {
+            next[n] = cur + MAZE_COLS;
+            n += 1;
+        }
+
+        if (n == 0) {
+            sp -= 1;
+            continue;
+        }
+
+        const pick = next[Random.mod(u32, @intCast(n))];
+        const px = pick % MAZE_COLS;
+
+        if (px == cx) {
+            h_wall[cx][@min(cy, pick / MAZE_COLS)] = false;
+        } else {
+            v_wall[@min(cx, px)][cy] = false;
+        }
+
+        visited[pick] = true;
+        stack[sp] = pick;
+        sp += 1;
+    }
+
+    for (0..MAZE_COLS - 1) |c| {
+        for (0..MAZE_ROWS) |r| {
+            if (!v_wall[c][r]) continue;
+            if (Random.mod(u32, 100) < BRAID_PERCENT) continue;
+
+            addWall(ff.Rect.new(
+                @as(i32, @intCast(c + 1)) * CELL - WALL_THICKNESS / 2,
+                @as(i32, @intCast(r)) * CELL,
+                WALL_THICKNESS,
+                CELL,
+            ));
+        }
+    }
+
+    for (0..MAZE_COLS) |c| {
+        for (0..MAZE_ROWS - 1) |r| {
+            if (!h_wall[c][r]) continue;
+            if (Random.mod(u32, 100) < BRAID_PERCENT) continue;
+
+            addWall(ff.Rect.new(
+                @as(i32, @intCast(c)) * CELL,
+                @as(i32, @intCast(r + 1)) * CELL - WALL_THICKNESS / 2,
+                CELL,
+                WALL_THICKNESS,
+            ));
+        }
     }
 }
 
-fn randomWall() ff.Rect {
-    const horizontal = Random.mod(u32, 2) == 0;
-    const length: i32 = 48 + @as(i32, @intCast(Random.mod(u32, 72)));
-    const thickness: i32 = 10;
-
-    const w = if (horizontal) length else thickness;
-    const h = if (horizontal) thickness else length;
-
-    const margin: i32 = 24;
-    const x = margin + @as(i32, @intCast(Random.mod(
-        u32,
-        @intCast(SPACE.size.width - margin * 2 - w),
-    )));
-    const y = margin + @as(i32, @intCast(Random.mod(
-        u32,
-        @intCast(SPACE.size.height - margin * 2 - h),
-    )));
-
-    return ff.Rect.new(x, y, w, h);
-}
-
-fn wallSpotOk(r: ff.Rect) bool {
-    // Keep the start point and every grave clear, with room to walk around.
-    if (pointRectDist(player.pos, r) < 64.0) return false;
+fn addWall(r: ff.Rect) void {
+    if (wall_count >= walls.len) return;
 
     for (graves[0..ghost_count]) |g| {
-        if (pointRectDist(g.pos, r) < 32.0) return false;
+        if (pointRectDist(g.pos, r) < 32.0) return;
     }
 
-    for (walls[0..wall_count]) |other| {
-        if (rectsOverlap(r, other, 20)) return false;
-    }
-
-    return true;
+    walls[wall_count] = r;
+    wall_count += 1;
 }
 
 fn pointRectDist(p: ff.Point, r: ff.Rect) f32 {
@@ -513,18 +574,6 @@ fn pointRectDist(p: ff.Point, r: ff.Rect) f32 {
     const dy = py - cy;
 
     return @sqrt(dx * dx + dy * dy);
-}
-
-fn rectsOverlap(a: ff.Rect, b: ff.Rect, gap: i32) bool {
-    const a_min = a.min();
-    const a_max = a.max();
-    const b_min = b.min();
-    const b_max = b.max();
-
-    return !(a_max.x + gap < b_min.x or
-        b_max.x + gap < a_min.x or
-        a_max.y + gap < b_min.y or
-        b_max.y + gap < a_min.y);
 }
 
 /// True when a circle at `p` overlaps any wall. Ghosts ignore this.
@@ -766,10 +815,6 @@ fn ghostCount(l: u32) usize {
     return @intCast(@min(3 + l, 8));
 }
 
-fn wallCount(l: u32) usize {
-    return @intCast(@min(4 + l / 2, @as(u32, MAX_WALLS)));
-}
-
 fn levelMs(l: u32) u64 {
     if (l <= 1) return 90_000;
 
@@ -901,8 +946,6 @@ comptime {
     if (levelMs(99) != 45_000) @compileError("level time should bottom out at 45 s");
     if (ghostCount(1) != 4) @compileError("level 1 should have 4 ghosts");
     if (ghostCount(99) != 8) @compileError("ghost count should cap at 8");
-    if (wallCount(1) != 4) @compileError("level 1 should have 4 walls");
-    if (wallCount(99) != MAX_WALLS) @compileError("wall count should cap");
 
     // Wall helpers are pure, so check them at compile time.
     {
@@ -913,12 +956,6 @@ comptime {
         }
         if (@abs(pointRectDist(.new(90, 110), r) - 10.0) > 0.001) {
             @compileError("a point left of a wall should be 10 px away");
-        }
-        if (!rectsOverlap(r, ff.Rect.new(130, 100, 20, 20), 10)) {
-            @compileError("walls 10 px apart should overlap with a 10 px gap");
-        }
-        if (rectsOverlap(r, ff.Rect.new(140, 100, 20, 20), 10)) {
-            @compileError("walls 20 px apart should not overlap with a 10 px gap");
         }
     }
     if (@sizeOf(@TypeOf(stash_buf)) != 16) @compileError("stash layout changed");
