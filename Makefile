@@ -37,9 +37,9 @@ deploy: export
 	@scp -q *.md ${HOSTNAME}:${SERVER_PATH}/
 	@scp -q src/*.zig ${HOSTNAME}:${SERVER_PATH}/src/
 	@scp -q -r src/boo ${HOSTNAME}:${SERVER_PATH}/src/
-	@echo "✔ Updated ${APP_ID} on ${APP_URL}"
+	@echo "✅ Updated ${APP_ID} on ${APP_URL}"
 	@scp -q ${ARCHIVE} ${HOSTNAME}:${SERVER_PATH}/rom/${ARCHIVE}
-	@echo "✔ Archive ${APP_URL}/rom/${ARCHIVE}"
+	@echo "✅ Archive ${APP_URL}/rom/${ARCHIVE}"
 	@if [ -d ${SHOTS_DIR} ]; then \
 		ssh ${HOSTNAME} 'mkdir -p ${SERVER_PATH}/shots'; \
 		ff shots download ${AUTHOR_ID}.${APP_ID};   			\
@@ -47,5 +47,5 @@ deploy: export
 			scp -q -r ./*.png ${HOSTNAME}:${SERVER_PATH}/shots/; \
 			rm -f ./*.png; \
 		fi; \
-		echo "✔ Screens ${APP_URL}/shots/?layout=grid"; \
+		echo "✅ Screens ${APP_URL}/shots/?layout=grid"; \
 	fi
