@@ -186,20 +186,73 @@ pub fn render(self: *const Ghost) void {
     const sp = Boo.cam.screen(self.pos);
     const following = self.state == .follow;
 
-    Circle.drawCentered(sp, RADIUS * 2, .{
+    // Follow ghosts get a white outline, but a white ghost would
+    // disappear against it — fall back to light gray for those.
+    const outline: ff.Color = blk: {
+        if (self.state != .follow) break :blk .black;
+        break :blk if (self.color == .white) .black else .black;
+    };
+
+    const stroke: i32 = if (following) 2 else 1;
+
+    // Pass 1: dark discs forming the hem's outline. Drawn BEFORE the
+    // body so the body covers their upper halves — only their lower
+    // union survives, as one continuous dark band, not three rings.
+    const hem_y = sp.y + RADIUS - 3;
+
+    inline for ([_]i32{ -4, 0, 4 }) |ox| {
+        ff.drawCircle(.new(sp.x + ox - 7, hem_y - 7), 14, .{ .fill_color = outline });
+    }
+
+    // Pass 2: body. Covers the top halves of the dark discs; its own
+    // stroke continues the outline around the rest of the silhouette.
+    Circle.drawCentered(.new(sp.x, sp.y - 2), RADIUS * 2, .{
         .fill_color = self.color,
-        .stroke_color = if (following) .white else .dark_blue,
-        .stroke_width = if (following) 2 else 1,
+        .stroke_color = outline,
+        .stroke_width = stroke,
     });
 
-    // A little tail and two eyes make the circle read as a ghost.
-    ff.drawTriangle(
-        .new(sp.x - 6, sp.y + 2),
-        .new(sp.x + 6, sp.y + 2),
-        .new(sp.x, sp.y + RADIUS + 3),
-        .{ .fill_color = self.color },
-    );
+    // Pass 3: fill discs (10px, centers 4 apart → 6px overlap each
+    // side). They merge with each other and with the body fill,
+    // covering the body's bottom stroke under the skirt. What remains
+    // of the dark discs is a single wavy rim ~2px thick that dips
+    // between scallops — one hem, zero internal rings.
+    inline for ([_]i32{ -4, 0, 4 }) |ox| {
+        ff.drawCircle(.new(sp.x + ox - 5, hem_y - 5), 10, .{ .fill_color = self.color });
+    }
 
-    ff.drawCircle(.new(sp.x - 4, sp.y - 4), 2, .{ .fill_color = .black });
-    ff.drawCircle(.new(sp.x + 2, sp.y - 4), 2, .{ .fill_color = .black });
+    const bottom_y = sp.y + RADIUS - 2; // ON the body's bottom stroke
+
+    // Scallop separators. The body's bottom arc rises ~1px by x = ±5,
+    // so the outer ticks start and end 1px higher than the center
+    // tick — they follow the curve instead of cutting flat across it.
+    // All bottoms stay ≤ hem_y + 5, inside the fill discs, so no tick
+    // can poke past the silhouette.
+    inline for ([_]struct { x: i32, top: i32, len: i32 }{
+        .{ .x = -5, .top = 0, .len = 4 },
+        .{ .x = 0, .top = 1, .len = 3 },
+        .{ .x = 5, .top = 0, .len = 4 },
+    }) |t| {
+        ff.drawLine(
+            .new(sp.x + t.x, bottom_y + t.top),
+            .new(sp.x + t.x, bottom_y + t.top + t.len),
+            .{ .color = outline, .width = stroke },
+        );
+    }
+
+    // Eyes: white sclera with the same outline as the body, black
+    // pupils that glance in the direction of travel.
+    // NOTE: ff.drawCircle's position is the TOP-LEFT corner, so we add
+    // half the diameter to land the visual center where we intend.
+    const dx: i32 = if (self.dir[0] < -0.01) -1 else if (self.dir[0] > 0.01) 1 else 0;
+    const dy: i32 = if (self.dir[1] < -0.01) -1 else if (self.dir[1] > 0.01) 1 else 0;
+
+    inline for ([_]i32{ -4, 3 }) |ex| {
+        const ex_c = sp.x + ex; // intended eye center x
+        const ey_c = sp.y - 4; // intended eye center y
+
+        ff.drawCircle(.new(ex_c - 4, ey_c - 4), 8, .{ .fill_color = .light_gray });
+        ff.drawCircle(.new(ex_c - 3, ey_c - 3), 6, .{ .fill_color = .white });
+        ff.drawCircle(.new(ex_c + dx - 1, ey_c + dy - 1), 2, .{ .fill_color = .black });
+    }
 }
