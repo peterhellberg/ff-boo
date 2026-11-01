@@ -362,6 +362,8 @@ const Game = struct {
 
 const Clear = struct {
     fn update(_: *Clear) void {
+        Burial.update(DT);
+
         if (clear_frames > 0) clear_frames -= 1;
 
         if (clear_frames == 0) {
