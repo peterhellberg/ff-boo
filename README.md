@@ -1,5 +1,7 @@
 # peter.boo :ghost:
 
+My entry for the [Firefly Zero Jam #3](https://itch.io/jam/firefly-jam-3) 🎃 
+
 > [!NOTE]
 > You are a friendly ghost shepherd. Ghosts wander the graveyard at night;
 > when you get close, they follow you. Herd each ghost back to its grave
