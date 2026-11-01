@@ -713,10 +713,24 @@ pub fn hitsWall(p: ff.Point, radius: f32) bool {
 }
 
 fn graveSpotOk(p: ff.Point, i: usize, center: ff.Point) bool {
-    if (p.sub(center).len() < 80.0) return false;
+    const center_delta = p.sub(center);
+    const center_dist_sq =
+        @as(f32, @floatFromInt(center_delta.x)) *
+        @as(f32, @floatFromInt(center_delta.x)) +
+        @as(f32, @floatFromInt(center_delta.y)) *
+            @as(f32, @floatFromInt(center_delta.y));
+
+    if (center_dist_sq < 6400.0) return false;
 
     for (graves[0..i]) |g| {
-        if (p.sub(g.pos).len() < 96.0) return false;
+        const delta = p.sub(g.pos);
+        const dist_sq =
+            @as(f32, @floatFromInt(delta.x)) *
+            @as(f32, @floatFromInt(delta.x)) +
+            @as(f32, @floatFromInt(delta.y)) *
+                @as(f32, @floatFromInt(delta.y));
+
+        if (dist_sq < 9216.0) return false;
     }
 
     return true;
