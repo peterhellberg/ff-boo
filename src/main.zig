@@ -185,8 +185,6 @@ const State = enum {
             btn = ff.readButtons(me);
         }
 
-        tickSound();
-
         // Cheat: start a fresh game once, so a headless run can be profiled.
         // One-shot, so with the cheat unused this is inert.
         if (cheats.jumpToGame) {
@@ -201,6 +199,8 @@ const State = enum {
             .Clear => clear.update(),
             .Over => over.update(),
         }
+
+        tickSound();
     }
 
     fn render(s: State) void {
@@ -1111,8 +1111,9 @@ fn levelMs(l: u32) u64 {
 
 fn tickSound() void {
     const now = ff.getTime();
+
     const delta: u32 = if (now > last_time)
-        @intCast(@min((now - last_time) / 1000, 100))
+        @intCast((now - last_time) / 1000)
     else
         0;
 
