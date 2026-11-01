@@ -4,6 +4,7 @@ const ff = @import("ff");
 
 const draw = ff.draw;
 
+const Best = @import("boo/Best.zig");
 const Burial = @import("boo/Burial.zig");
 const Camera = @import("boo/Camera.zig");
 const Cheats = @import("boo/Cheats.zig");
@@ -70,11 +71,6 @@ var started_at: u64 = 0;
 var run_score: i32 = 0;
 var clear_bonus: i32 = 0;
 var clear_frames: u16 = 0;
-
-var best_level: u32 = 1;
-var best_score: i32 = 0;
-var best_time_s: u16 = 0;
-var total_buried: u32 = 0;
 
 var ghost_count: usize = 0;
 var ghosts: [NUM_GHOSTS_MAX]Ghost = @splat(.{});
@@ -359,20 +355,22 @@ const Over = struct {
         textCentered(b, 120, 81, .yellow);
 
         b = hudPrint("BEST {d} N{d}", .{
-            best_score,
-            best_level,
+            Best.score,
+            Best.level,
         }) catch return;
         textCentered(b, 120, 93, .light_gray);
 
-        if (best_time_s > 0) {
-            const t: u64 = best_time_s;
+        if (Best.time_s > 0) {
+            const t: u64 = Best.time_s;
             b = hudPrint("SOULS {d} FASTEST {d}:{d:0>2}", .{
-                total_buried,
+                Best.total_buried,
                 t / 60,
                 t % 60,
             }) catch return;
         } else {
-            b = hudPrint("SOULS {d}", .{total_buried}) catch return;
+            b = hudPrint("SOULS {d}", .{
+                Best.total_buried,
+            }) catch return;
         }
         textCentered(b, 120, 105, .cyan);
 
@@ -449,11 +447,11 @@ fn enterClear() void {
         (level_ms - remainingMs() + 999) / 1000,
         65535,
     ));
-    if (best_time_s == 0 or elapsed_s < best_time_s) best_time_s = elapsed_s;
+    if (Best.time_s == 0 or elapsed_s < Best.time_s) Best.time_s = elapsed_s;
 
-    best_level = @max(best_level, level);
-    best_score = @max(best_score, run_score);
-    saveBest();
+    Best.level = @max(Best.level, level);
+    Best.score = @max(Best.score, run_score);
+    Best.save();
 
     clearSound();
     clear_frames = CLEAR_FRAMES;
@@ -463,9 +461,9 @@ fn enterClear() void {
 fn enterOver() void {
     Palette.apply(5);
 
-    best_level = @max(best_level, level);
-    best_score = @max(best_score, run_score);
-    saveBest();
+    Best.level = @max(Best.level, level);
+    Best.score = @max(Best.score, run_score);
+    Best.save();
 
     const score: i16 = @intCast(@max(
         0,
@@ -709,13 +707,14 @@ fn buryGhosts() void {
             ghost.state = .buried;
 
             const ghostColor = ghost.color;
+
             graves[i].ghost_color = ghostColor;
             graves[i].filled = true;
 
             Burial.trigger(graves[i].pos, ghostColor);
 
             run_score += 100;
-            total_buried += 1;
+            Best.total_buried += 1;
 
             const me = ff.getMe();
 
@@ -1100,64 +1099,6 @@ fn dawnSound() void {
     sound.chord(&.{ .e3, .b3 }, 600, 0.08, 40);
 }
 
-var stash_buf: [16]u8 = @splat(0);
-
-fn loadBest() void {
-    const s = ff.loadStash(ff.getMe(), &stash_buf) orelse return;
-
-    if (s.len < 12) return;
-    if (s[0] != 'B' or s[1] != 'O' or s[2] != 'O' or s[3] != '1') return;
-
-    best_level = @max(1, readU16(s[4..6]));
-    best_score = @intCast(readU16(s[6..8]));
-    total_buried = readU32(s[8..12]);
-
-    best_time_s = 0;
-    if (s.len >= 14) {
-        best_time_s = readU16(s[12..14]);
-    }
-}
-
-fn saveBest() void {
-    stash_buf[0] = 'B';
-    stash_buf[1] = 'O';
-    stash_buf[2] = 'O';
-    stash_buf[3] = '1';
-
-    writeU16(stash_buf[4..6], @intCast(@min(best_level, 65535)));
-    writeU16(stash_buf[6..8], @intCast(@max(0, @min(best_score, 65535))));
-    writeU32(stash_buf[8..12], total_buried);
-    writeU16(stash_buf[12..14], best_time_s);
-
-    stash_buf[14] = 0;
-    stash_buf[15] = 0;
-
-    ff.saveStash(ff.getMe(), &stash_buf);
-}
-
-fn readU16(b: []const u8) u16 {
-    return @as(u16, b[0]) | (@as(u16, b[1]) << 8);
-}
-
-fn readU32(b: []const u8) u32 {
-    return @as(u32, b[0]) |
-        (@as(u32, b[1]) << 8) |
-        (@as(u32, b[2]) << 16) |
-        (@as(u32, b[3]) << 24);
-}
-
-fn writeU16(b: []u8, v: u16) void {
-    b[0] = @truncate(v);
-    b[1] = @truncate(v >> 8);
-}
-
-fn writeU32(b: []u8, v: u32) void {
-    b[0] = @truncate(v);
-    b[1] = @truncate(v >> 8);
-    b[2] = @truncate(v >> 16);
-    b[3] = @truncate(v >> 24);
-}
-
 pub fn text(t: ff.String, p: ff.Point, c: ff.Color) void {
     draw.Text(t, fff, p, c);
 }
@@ -1196,7 +1137,7 @@ pub export fn boot() void {
     }
 
     sound = Sound.init();
-    loadBest();
+    Best.load();
 }
 
 pub export fn update() void {
@@ -1208,7 +1149,7 @@ pub export fn render() void {
 }
 
 pub export fn before_exit() void {
-    saveBest();
+    Best.save();
 }
 
 comptime {
@@ -1229,5 +1170,4 @@ comptime {
             @compileError("a point left of a wall should be 10 px away (squared distance 100)");
         }
     }
-    if (@sizeOf(@TypeOf(stash_buf)) != 16) @compileError("stash layout changed");
 }
