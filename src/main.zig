@@ -770,6 +770,8 @@ fn renderWorld(show_player: bool) void {
         grave.render(ghost.color);
     }
 
+    Burial.render(cam, draw);
+
     if (cheats.followLines) {
         for (ghosts[0..ghost_count]) |*ghost| {
             ghost.line();
@@ -781,8 +783,6 @@ fn renderWorld(show_player: bool) void {
     }
 
     if (show_player) player.render();
-
-    Burial.render(cam, draw);
 }
 
 /// Small deterministic hash — same inputs always give same output.
