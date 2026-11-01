@@ -17,7 +17,7 @@ color: ff.Color = .white,
 wander_frames: u16 = 0,
 
 pub const RADIUS: i32 = 9;
-pub const BURY_RADIUS: f32 = 16.0;
+pub const BURY_RADIUS: f32 = 24.0;
 pub const SEPARATION: f32 = 18.0;
 
 const WANDER_SPEED: f32 = 0.3;
