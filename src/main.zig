@@ -374,6 +374,7 @@ const GRAVE_H: i32 = 18;
 const Grave = struct {
     pos: ff.Point = .{},
     filled: bool = false,
+    ghost_color: ff.Color = .white, // color of the ghost laid to rest
 
     fn render(self: *const Grave, color: ff.Color) void {
         const r = self.pos
@@ -386,17 +387,35 @@ const Grave = struct {
         const x = sp.x - @divTrunc(GRAVE_W, 2);
         const y = sp.y - @divTrunc(GRAVE_H, 2);
 
-        draw.rrect(x, y, GRAVE_W, GRAVE_H, 3, 3, .{
-            .fill_color = if (self.filled) .green else .dark_gray,
-            .stroke_color = .gray,
+        // Tombstone body: rounded top half only, flat bottom — the
+        // classic headstone profile. Occupied stones take on the
+        // buried ghost's color.
+        draw.rrect(x, y, GRAVE_W, GRAVE_H, @divTrunc(GRAVE_W, 2), @divTrunc(GRAVE_W, 2), .{
+            .fill_color = if (self.filled) self.ghost_color else .gray,
+            .stroke_color = .dark_gray,
             .stroke_width = 1,
+        });
+        // Square off the bottom corners the rounded rect rounded.
+        draw.rect(x, y + GRAVE_H - @divTrunc(GRAVE_W, 2), GRAVE_W, @divTrunc(GRAVE_W, 2), .{
+            .fill_color = if (self.filled) self.ghost_color else .gray,
+        });
+
+        // Base plinth: a wider foot anchors the stone into the ground
+        // and gives every grave the same "footprint" in both states.
+        draw.rect(x - 1, y + GRAVE_H - 2, GRAVE_W + 2, 3, .{
+            .fill_color = .dark_gray,
         });
 
         if (self.filled) {
-            draw.line(sp.x - 3, sp.y - 2, sp.x + 3, sp.y - 2, .{ .color = .light_green });
-            draw.line(sp.x, sp.y - 5, sp.x, sp.y + 3, .{ .color = .light_green });
+            draw.circ(sp.x - 5, y - 3, 10, .{ .fill_color = color });
+            draw.circ(sp.x - 4, y - 2, 4, .{ .fill_color = .white });
         } else {
-            draw.circ(sp.x - 3, sp.y - GRAVE_H, 6, .{ .fill_color = color });
+            // Empty plot: dug hole in front, with the ghost's color orb
+            // centered on the headstone crest — the marker for which
+            // ghost belongs here.
+            draw.elli(sp.x - 7, sp.y + 1, 14, 5, .{ .fill_color = .black });
+            draw.circ(sp.x - 5, y - 3, 10, .{ .fill_color = color });
+            draw.circ(sp.x - 4, y - 2, 4, .{ .fill_color = .white });
         }
     }
 };
@@ -646,6 +665,9 @@ fn buryGhosts() void {
 
         if (ghost.pos.sub(graves[i].pos).len() < Ghost.BURY_RADIUS) {
             ghost.state = .buried;
+
+            const ghostColor = ghost.color;
+            graves[i].ghost_color = ghostColor;
             graves[i].filled = true;
 
             run_score += 100;
