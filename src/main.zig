@@ -716,6 +716,9 @@ fn graveSpotOk(p: ff.Point, i: usize, center: ff.Point) bool {
 }
 
 fn separateGhosts() void {
+    const min = Ghost.SEPARATION;
+    const min_sq = min * min;
+
     for (ghosts[0..ghost_count], 0..) |*a, i| {
         if (a.state == .buried) continue;
 
@@ -724,9 +727,8 @@ fn separateGhosts() void {
 
             const delta = b.vec - a.vec;
             const dist_sq = delta[0] * delta[0] + delta[1] * delta[1];
-            const min = Ghost.SEPARATION;
 
-            if (dist_sq == 0 or dist_sq >= min * min) continue;
+            if (dist_sq == 0 or dist_sq >= min_sq) continue;
 
             const dist = @sqrt(dist_sq);
             const push = (min - dist) * 0.5;
@@ -746,7 +748,14 @@ fn buryGhosts() void {
     for (ghosts[0..ghost_count], 0..) |*ghost, i| {
         if (ghost.state != .follow or graves[i].filled) continue;
 
-        if (ghost.pos.sub(graves[i].pos).len() < Ghost.BURY_RADIUS) {
+        const delta = ghost.pos.sub(graves[i].pos);
+        const dist_sq =
+            @as(f32, @floatFromInt(delta.x)) * @as(f32, @floatFromInt(delta.x)) +
+            @as(f32, @floatFromInt(delta.y)) * @as(f32, @floatFromInt(delta.y));
+
+        const radius = Ghost.BURY_RADIUS;
+
+        if (dist_sq < radius * radius) {
             ghost.state = .buried;
 
             const ghostColor = ghost.color;
