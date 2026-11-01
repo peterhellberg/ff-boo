@@ -1,7 +1,7 @@
 const Cheats = @This();
 
-tagName: bool = false,
 followLines: bool = false,
+stateName: bool = false,
 stateFlip: bool = false,
 jumpToGame: bool = false,
 
@@ -13,7 +13,7 @@ pub fn apply(self: *Cheats, cmd: i32, val: i32) i32 {
     }
 
     if (cmd == 2 and val == 42) {
-        self.tagName = !self.tagName;
+        self.stateName = !self.stateName;
 
         return 0;
     }

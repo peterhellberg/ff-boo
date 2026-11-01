@@ -204,16 +204,16 @@ const State = enum {
     fn render(s: State) void {
         ff.clearScreen(.black);
 
-        if (cheats.tagName) {
-            text(@tagName(s), .new(10, 10), .dark_blue);
-        }
-
         switch (s) {
             .Menu => menu.render(),
             .Init => {},
             .Game => game.render(),
             .Clear => clear.render(),
             .Over => over.render(),
+        }
+
+        if (cheats.stateName) {
+            text(@tagName(s), .new(4, 21), .orange);
         }
     }
 };
@@ -415,7 +415,7 @@ const Over = struct {
 
         if (best_time_s > 0) {
             const t: u64 = best_time_s;
-            b = std.fmt.bufPrint(&hud_buf, "SOULS {d}  FAST {d}:{d:0>2}", .{
+            b = std.fmt.bufPrint(&hud_buf, "SOULS {d} BEST NIGHT {d}:{d:0>2}", .{
                 total_buried,
                 t / 60,
                 t % 60,
