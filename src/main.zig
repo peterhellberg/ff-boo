@@ -1023,25 +1023,25 @@ fn applyPalette(step: u32) void {
     // mid-lightness). Ease so both ends get visible motion.
     const t_raw = @as(f32, @floatFromInt(step)) / 5.0;
     const t = t_raw * t_raw * (3.0 - 2.0 * t_raw);
+    const t_q: u8 = @intFromFloat(t * 255.0 + 0.5);
 
     var p: ff.Palette = NIGHT;
     inline for (@typeInfo(ff.Palette).@"struct".field_names) |name| {
-        @field(p, name) = lerpHex(@field(NIGHT, name), @field(DAWN, name), t);
+        @field(p, name) = lerpHex(@field(NIGHT, name), @field(DAWN, name), t_q);
     }
     p.set();
 
     dawn_step = step;
 }
 
-fn lerpHex(a: u32, b: u32, t: f32) u32 {
+fn lerpHex(a: u32, b: u32, t_q: u8) u32 { // t_q = 0..255
     var result: u32 = 0;
     inline for (0..3) |i| {
-        const shift = 8 * (2 - i); // r, g, b order in 0xRRGGBB
-        const ca: f32 = @floatFromInt((a >> @intCast(shift)) & 0xFF);
-        const cb: f32 = @floatFromInt((b >> @intCast(shift)) & 0xFF);
-        const mixed = ca + (cb - ca) * t;
-        const rounded: u32 = @intFromFloat(mixed + 0.5); // round, don't truncate
-        result |= rounded << @intCast(shift);
+        const shift: u5 = @intCast(8 * (2 - i));
+        const ca: u32 = (a >> shift) & 0xFF;
+        const cb: u32 = (b >> shift) & 0xFF;
+        const mixed = (ca * (255 - t_q) + cb * t_q + 127) / 255;
+        result |= mixed << shift;
     }
     return result;
 }
@@ -1221,7 +1221,7 @@ pub export fn before_exit() void {
 }
 
 comptime {
-    if (lerpHex(0x000000, 0xFFFFFF, 0.5) != 0x808080) {
+    if (lerpHex(0x000000, 0xFFFFFF, 128) != 0x808080) {
         @compileError("lerpHex midpoint is wrong");
     }
 
