@@ -4,6 +4,7 @@ const ff = @import("ff");
 
 const draw = ff.draw;
 
+const Burial = @import("boo/Burial.zig");
 const Camera = @import("boo/Camera.zig");
 const Cheats = @import("boo/Cheats.zig");
 const Ghost = @import("boo/Ghost.zig");
@@ -11,6 +12,8 @@ const Player = @import("boo/Player.zig");
 const Random = @import("boo/Random.zig");
 const Sound = @import("boo/Sound.zig");
 const Star = @import("boo/Star.zig");
+
+pub const DT: f32 = 1.0 / 60.0;
 
 pub const SIZE_SPACE = 3;
 pub const SIZE_PLAYER = 21;
@@ -317,6 +320,8 @@ const Init = struct {
 
 const Game = struct {
     fn update(_: *Game) void {
+        Burial.update(DT);
+
         player.update();
 
         cam.center(player.pos);
@@ -725,6 +730,8 @@ fn buryGhosts() void {
             graves[i].ghost_color = ghostColor;
             graves[i].filled = true;
 
+            Burial.trigger(graves[i].pos, ghostColor);
+
             run_score += 100;
             total_buried += 1;
 
@@ -761,17 +768,26 @@ fn renderWorld(show_player: bool) void {
         grave.render(ghost.color);
     }
 
+    if (cheats.followLines) {
+        for (ghosts[0..ghost_count]) |*ghost| {
+            ghost.line();
+        }
+    }
+
     for (ghosts[0..ghost_count]) |*ghost| {
         ghost.render();
     }
 
     if (show_player) player.render();
 
-    if (cheats.followLines) {
-        for (ghosts[0..ghost_count]) |*ghost| {
-            ghost.line();
-        }
-    }
+    Burial.render(cam, draw);
+}
+
+/// Small deterministic hash — same inputs always give same output.
+fn hash2(x: u32, y: u32) u32 {
+    var h = x *% 374761393 +% y *% 668265263;
+    h = (h ^ (h >> 13)) *% 1274126177;
+    return h ^ (h >> 16);
 }
 
 fn renderWalls() void {
@@ -788,37 +804,63 @@ fn renderWalls() void {
             .stroke_width = 1,
         });
 
-        // Bevel: light top-left, dark bottom-right, gives the wall height.
+        // Bevel.
         draw.line(p.x, p.y, p.x + w.size.width - 1, p.y, .{ .color = .gray });
         draw.line(p.x, p.y, p.x, p.y + w.size.height - 1, .{ .color = .gray });
         draw.line(p.x, p.y + w.size.height - 1, p.x + w.size.width - 1, p.y + w.size.height - 1, .{ .color = .black });
         draw.line(p.x + w.size.width - 1, p.y, p.x + w.size.width - 1, p.y + w.size.height - 1, .{ .color = .black });
 
-        // Inner field where bricks live (inside the bevel).
         const bx = p.x + 1;
         const by = p.y + 1;
         const bw = w.size.width - 2;
         const bh = w.size.height - 2;
         if (bw <= 0 or bh <= 0) continue;
 
-        // Brick coursing: rows every 8 px along the short axis, bricks 16 px
-        // long along the running axis, alternate rows offset by half a brick.
         const brick_len: i32 = 16;
         const row_h: i32 = 8;
+
+        // World-space seed so the pattern is stable across frames AND
+        // continuous across adjacent wall segments.
+        const seed: u32 = @bitCast(w.point.x *% 31 +% w.point.y *% 733);
 
         if (horizontal) {
             var row: i32 = 0;
             while (row < bh) : (row += row_h) {
-                // Horizontal mortar line across the row bottom.
                 if (row > 0) {
                     draw.line(bx, by + row, bx + bw - 1, by + row, .{ .color = .gray });
                 }
-                // Vertical joints, staggered per row.
                 const stagger = if (@mod(@divTrunc(row, row_h), 2) == 1) brick_len / 2 else 0;
                 var joint = stagger;
                 while (joint < bw) : (joint += brick_len) {
                     if (joint == 0) continue;
                     draw.line(bx + joint, by + row, bx + joint, by + @min(row + row_h, bh) - 1, .{ .color = .gray });
+                }
+            }
+
+            // Speckles: iterate bricks (not pixels) so each brick gets
+            // 2-3 deterministic dots.
+            var brow: i32 = 0;
+            while (brow < bh) : (brow += row_h) {
+                var bcol: i32 = 0;
+                while (bcol < bw) : (bcol += brick_len) {
+                    const h = hash2(
+                        seed +% @as(u32, @bitCast(bcol)),
+                        @as(u32, @bitCast(brow)),
+                    );
+                    const n_specks = 2 + (h % 2); // 2 or 3 specks per brick
+                    var s: u32 = 0;
+                    while (s < n_specks) : (s += 1) {
+                        const hx = hash2(h, s *% 2 +% 1);
+                        const hy = hash2(h, s *% 2 +% 2);
+                        const sx = bcol + @as(i32, @intCast(hx % @as(u32, @intCast(brick_len - 1))));
+                        const sy = brow + @as(i32, @intCast(hy % @as(u32, @intCast(row_h - 1))));
+
+                        if (sx < bw and sy < bh) {
+                            // Alternate light/dark specks for grit.
+                            const color: ff.Color = if (hx & 1 == 0) .gray else .black;
+                            draw.Point(.new(bx + sx, by + sy), color);
+                        }
+                    }
                 }
             }
         } else {
@@ -832,6 +874,33 @@ fn renderWalls() void {
                 while (joint < bh) : (joint += brick_len) {
                     if (joint == 0) continue;
                     draw.line(bx + row, by + joint, bx + @min(row + row_h, bw) - 1, by + joint, .{ .color = .gray });
+                }
+            }
+
+            // Speckles, axes swapped: rows run along the width, bricks along
+            // the height.
+            var brow: i32 = 0;
+            while (brow < bw) : (brow += row_h) {
+                var bcol: i32 = 0;
+                while (bcol < bh) : (bcol += brick_len) {
+                    const h = hash2(
+                        seed +% @as(u32, @bitCast(bcol)),
+                        @as(u32, @bitCast(brow)),
+                    );
+                    const n_specks = 2 + (h % 2); // 2 or 3 specks per brick
+                    var s: u32 = 0;
+                    while (s < n_specks) : (s += 1) {
+                        const hx = hash2(h, s *% 2 +% 1);
+                        const hy = hash2(h, s *% 2 +% 2);
+                        const sx = brow + @as(i32, @intCast(hx % @as(u32, @intCast(row_h - 1))));
+                        const sy = bcol + @as(i32, @intCast(hy % @as(u32, @intCast(brick_len - 1))));
+
+                        if (sx < bw and sy < bh) {
+                            // Alternate light/dark specks for grit.
+                            const color: ff.Color = if (hx & 1 == 0) .gray else .black;
+                            draw.Point(.new(bx + sx, by + sy), color);
+                        }
+                    }
                 }
             }
         }
