@@ -59,14 +59,23 @@ pub fn sineAt(
 /// Queue a single sliding sine tone, starting as soon as the previous
 /// queued note ends (plus `gap_ms`). If nothing is queued, it starts
 /// immediately.
-pub fn sine(self: *Sound, start: ff.audio.Freq, end: ff.audio.Freq, duration_ms: u32, amplitude: f32, gap_ms: u32) void {
+pub fn sine(
+    self: *Sound,
+    start: ff.audio.Freq,
+    end: ff.audio.Freq,
+    duration_ms: u32,
+    amplitude: f32,
+    gap_ms: u32,
+) void {
     if (self.queue_len >= self.queue.len) return;
 
-    var start_time: u32 = self.elapsed_ms;
+    var start_time = self.elapsed_ms;
 
     if (self.queue_len > 0) {
         const last = self.queue[self.queue_len - 1];
-        start_time = last.start_ms + last.duration_ms + gap_ms;
+        const next_time = last.start_ms + last.duration_ms + gap_ms;
+
+        start_time = @max(self.elapsed_ms, next_time);
     }
 
     self.sineAt(start_time, start, end, duration_ms, amplitude);
@@ -195,9 +204,8 @@ pub fn tick(self: *Sound, delta_ms: u32) void {
                 },
             });
 
-            const fade_in_frac: f32 = 0.2;
-            const fade_in_ms: u32 = @as(u32, @intFromFloat(@as(f32, @floatFromInt(sound.duration_ms)) * fade_in_frac));
-            const fade_out_start_ms: u32 = fade_in_ms;
+            const fade_in_ms: u32 = @min(sound.duration_ms / 2, 4);
+            const fade_out_start_ms = fade_in_ms;
 
             g.modulate(.{
                 .linear = .{
@@ -208,8 +216,6 @@ pub fn tick(self: *Sound, delta_ms: u32) void {
                 },
             });
 
-            // Fade out fully by the audible end; the tail afterwards is
-            // silent buffer time.
             g.modulate(.{
                 .linear = .{
                     .start = sound.amplitude,
