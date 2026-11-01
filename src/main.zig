@@ -381,7 +381,7 @@ const Clear = struct {
         panel(60, 56, 120, 46);
         textCentered("NIGHT CLEARED", 120, 70, .white);
 
-        const b = std.fmt.bufPrint(&hud_buf, "+{d}", .{clear_bonus}) catch return;
+        const b = hudPrint("+{d}", .{clear_bonus}) catch return;
         textCentered(b, 120, 90, .yellow);
     }
 };
@@ -405,10 +405,10 @@ const Over = struct {
         textCentered("DAWN", 120, 41, .white);
         textCentered("THE NIGHT IS OVER", 120, 61, .light_gray);
 
-        var b = std.fmt.bufPrint(&hud_buf, "SCORE {d}", .{run_score}) catch return;
+        var b = hudPrint("SCORE {d}", .{run_score}) catch return;
         textCentered(b, 120, 81, .yellow);
 
-        b = std.fmt.bufPrint(&hud_buf, "BEST {d} N{d}", .{
+        b = hudPrint("BEST {d} N{d}", .{
             best_score,
             best_level,
         }) catch return;
@@ -416,13 +416,13 @@ const Over = struct {
 
         if (best_time_s > 0) {
             const t: u64 = best_time_s;
-            b = std.fmt.bufPrint(&hud_buf, "SOULS {d} FASTEST {d}:{d:0>2}", .{
+            b = hudPrint("SOULS {d} FASTEST {d}:{d:0>2}", .{
                 total_buried,
                 t / 60,
                 t % 60,
             }) catch return;
         } else {
-            b = std.fmt.bufPrint(&hud_buf, "SOULS {d}", .{total_buried}) catch return;
+            b = hudPrint("SOULS {d}", .{total_buried}) catch return;
         }
         textCentered(b, 120, 105, .cyan);
 
@@ -1025,23 +1025,33 @@ fn renderSunAndHills() void {
     draw.line(0, HORIZON_Y, ff.width, HORIZON_Y, .{ .color = .black });
 }
 
+fn hudPrint(comptime fmt: []const u8, args: anytype) std.fmt.BufPrintError![]u8 {
+    return std.fmt.bufPrint(&hud_buf, fmt, args);
+}
+
 fn renderHud() void {
     const filled = filledGraves();
 
-    var b = std.fmt.bufPrint(&hud_buf, "SOULS {d}/{d}", .{
+    var b = hudPrint("SOULS {d}/{d}", .{
         filled,
         ghost_count,
     }) catch return;
+
     text(b, .new(4, 12), .white);
 
     const secs: u64 = (remainingMs() + 999) / 1000;
-    b = std.fmt.bufPrint(&hud_buf, "{d}:{d:0>2}", .{
+
+    b = hudPrint("{d}:{d:0>2}", .{
         secs / 60,
         secs % 60,
     }) catch return;
+
     text(b, .new(ff.width - @as(i32, @intCast(b.len)) * 6 - 4, 12), .white);
 
-    b = std.fmt.bufPrint(&hud_buf, "NIGHT {d}", .{level}) catch return;
+    b = hudPrint("NIGHT {d}", .{
+        level,
+    }) catch return;
+
     text(b, .new(ff.width - @as(i32, @intCast(b.len)) * 6 - 4, 24), .light_gray);
 }
 
