@@ -83,7 +83,7 @@ fn wander(self: *Ghost) void {
     }
 
     self.vec += self.dir * @as(ff.Vec, @splat(WANDER_SPEED));
-    self.pos = ff.Point.from_vec(self.vec);
+    self.pos = .from_vec(self.vec);
     self.bounce();
 
     if (self.pos.sub(Boo.player.pos).len() < FOLLOW_RADIUS) {
@@ -144,7 +144,7 @@ fn bounce(self: *Ghost) void {
         self.vec[1] = max_y;
     }
 
-    self.pos = ff.Point.from_vec(self.vec);
+    self.pos = .from_vec(self.vec);
 }
 
 pub fn clamp(self: *Ghost) void {
@@ -160,7 +160,7 @@ pub fn clamp(self: *Ghost) void {
         @min(self.vec[1], @as(f32, @floatFromInt(hi.y))),
     );
 
-    self.pos = ff.Point.from_vec(self.vec);
+    self.pos = .from_vec(self.vec);
 }
 
 pub fn line(self: *const Ghost) void {
