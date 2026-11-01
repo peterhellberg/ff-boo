@@ -8,6 +8,7 @@ const Burial = @import("boo/Burial.zig");
 const Camera = @import("boo/Camera.zig");
 const Cheats = @import("boo/Cheats.zig");
 const Ghost = @import("boo/Ghost.zig");
+const Palette = @import("boo/Palette.zig");
 const Player = @import("boo/Player.zig");
 const Random = @import("boo/Random.zig");
 const Sound = @import("boo/Sound.zig");
@@ -65,7 +66,6 @@ var frame: u32 = 0;
 var level: u32 = 1;
 var level_ms: u64 = 0;
 var started_at: u64 = 0;
-var dawn_step: u32 = 0;
 
 var run_score: i32 = 0;
 var clear_bonus: i32 = 0;
@@ -111,60 +111,6 @@ const GHOST_COLORS = [NUM_GHOSTS_MAX]ff.Color{
     .purple,
     .dark_gray,
     .light_blue,
-};
-
-const NIGHT: ff.Palette = .{
-    // Warm-tinted neutrals: black is slightly warm so it doesn't
-    // fight the cream white; grays follow the same temperature.
-    .black = 0x1A1A1D,
-    .dark_gray = 0x4A4E5A, // cool slate — reads as night shadow, not "missing color"
-    .gray = 0x8C8E96,
-    .light_gray = 0xCDCFC8, // warm-neutral, bridges gray → cream white
-    .white = 0xF2EFE0, // your cream, kept
-
-    // Blues tightened into one family: navy → royal → sky.
-    .dark_blue = 0x24356E, // your navy, kept
-    .blue = 0x4066D6, // brighter, less violet than before
-    .light_blue = 0x7FC4EA, // pushed cyan-ward; previously crowded purple
-
-    // Fire and foliage now actually split: orange is ember, and
-    // dark_green is a real dark leaf green instead of a second orange.
-    .orange = 0xF79E1D,
-    .yellow = 0xFFD075, // your yellow, kept
-    .dark_green = 0x2E7D4F, // was 0xC77C03 — that was an orange
-    .green = 0x43B364, // your green, kept
-    .light_green = 0xA9EE6C, // your light green, kept
-
-    // Accents: red warmed to stop competing with purple's coolness.
-    .cyan = 0x5BC9D6, // your cyan, kept
-    .red = 0xD85555, // slightly warmer than before
-    .purple = 0x9C5BB5, // brightened — it was the muddiest accent
-};
-
-const DAWN: ff.Palette = .{
-    // Neutrals stay plum-toned but now actually span the range.
-    .black = 0x42202E, // deep plum — was mid-tone, silhouettes vanished
-    .dark_gray = 0x6B4A52,
-    .gray = 0x9E7B72,
-    .light_gray = 0xE3BDA4,
-    .white = 0xFFF3D9, // warm cream, kept
-
-    // Cool tones get a "morning mist" cast — desaturated but present,
-    // and now distinct from each other (before, dark_blue/blue/
-    // light_blue were three near-identical mauves).
-    .dark_blue = 0x3E3A5C,
-    .blue = 0x6E6FA8,
-    .light_blue = 0xA9C7DD, // misty sky
-    .cyan = 0x8FC5BC,
-
-    // Warm tones deepened slightly so they don't all read as "beige".
-    .orange = 0xE8913F,
-    .red = 0xC4554E, // was 0xD07068 — needed to actually be red
-    .dark_green = 0xB06A3A, // warm umber, still sunset-compatible
-    .yellow = 0xF5D98C,
-    .green = 0x7B9955, // deepened; was nearly gray-green mush
-    .light_green = 0xB8CE7E,
-    .purple = 0x9A6FA5, // pulled toward actual purple
 };
 
 const State = enum {
@@ -310,7 +256,8 @@ const Init = struct {
         ghost_count = ghostCount(level);
         generate();
 
-        applyPalette(0);
+        Palette.apply(0);
+
         started_at = ff.getTime();
         level_ms = levelMs(level);
 
@@ -337,7 +284,7 @@ const Game = struct {
         buryGhosts();
 
         const step = dawnStep();
-        if (step != dawn_step) applyPalette(step);
+        if (step != Palette.dawn_step) Palette.apply(step);
 
         if (allBuried()) {
             enterClear();
@@ -350,9 +297,11 @@ const Game = struct {
         }
 
         if (cheats.stateFlip and !btn.n and old.n) {
-            applyPalette(0);
+            Palette.apply(0);
+
             state = .Menu;
         }
+
         if (cheats.stateFlip and !btn.s and old.s) enterOver();
     }
 
@@ -391,7 +340,8 @@ const Over = struct {
         if (!btn.e and old.e) startRun();
 
         if (!btn.n and old.n) {
-            applyPalette(0);
+            Palette.apply(0);
+
             state = .Menu;
         }
     }
@@ -511,7 +461,7 @@ fn enterClear() void {
 }
 
 fn enterOver() void {
-    applyPalette(5);
+    Palette.apply(5);
 
     best_level = @max(best_level, level);
     best_score = @max(best_score, run_score);
@@ -965,7 +915,7 @@ fn renderWalls() void {
 }
 
 fn renderStars() void {
-    const step: usize = @intCast(dawn_step);
+    const step: usize = @intCast(Palette.dawn_step);
 
     for (stars, 0..) |star, i| {
         if (@mod(i + step, 6) < step) continue;
@@ -1078,35 +1028,6 @@ fn dawnStep() u32 {
     const n: u32 = @intFromFloat(dawnProgress() * 6.0);
 
     return @min(n, 5);
-}
-
-fn applyPalette(step: u32) void {
-    // Smoothstep on t: at 6 steps the raw linear ramp makes steps 0-1
-    // and 4-5 look nearly identical (the eye discriminates best at
-    // mid-lightness). Ease so both ends get visible motion.
-    const t_raw = @as(f32, @floatFromInt(step)) / 5.0;
-    const t = t_raw * t_raw * (3.0 - 2.0 * t_raw);
-    const t_q: u8 = @intFromFloat(t * 255.0 + 0.5);
-
-    var p: ff.Palette = NIGHT;
-    inline for (@typeInfo(ff.Palette).@"struct".field_names) |name| {
-        @field(p, name) = lerpHex(@field(NIGHT, name), @field(DAWN, name), t_q);
-    }
-    p.set();
-
-    dawn_step = step;
-}
-
-fn lerpHex(a: u32, b: u32, t_q: u8) u32 { // t_q = 0..255
-    var result: u32 = 0;
-    inline for (0..3) |i| {
-        const shift: u5 = @intCast(8 * (2 - i));
-        const ca: u32 = (a >> shift) & 0xFF;
-        const cb: u32 = (b >> shift) & 0xFF;
-        const mixed = (ca * (255 - t_q) + cb * t_q + 127) / 255;
-        result |= mixed << shift;
-    }
-    return result;
 }
 
 fn ghostCount(l: u32) usize {
@@ -1263,7 +1184,7 @@ pub export fn cheat(cmd: i32, val: i32) i32 {
 }
 
 pub export fn boot() void {
-    applyPalette(0);
+    Palette.apply(0);
 
     fff = ff.loadFile("font", buf[0..]);
 
@@ -1289,10 +1210,6 @@ pub export fn before_exit() void {
 }
 
 comptime {
-    if (lerpHex(0x000000, 0xFFFFFF, 128) != 0x808080) {
-        @compileError("lerpHex midpoint is wrong");
-    }
-
     if (levelMs(1) != 90_000) @compileError("level 1 should be 90 s");
     if (levelMs(99) != 45_000) @compileError("level time should bottom out at 45 s");
     if (ghostCount(1) != 4) @compileError("level 1 should have 4 ghosts");
