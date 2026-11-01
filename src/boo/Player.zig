@@ -41,7 +41,7 @@ fn step(p: *Player, comptime axis: usize) void {
     var next = p.vec;
     next[axis] += p.vel[axis];
 
-    const point = ff.Point.from_vec(next);
+    const point: ff.Point = .from_vec(next);
     const radius = @as(f32, @floatFromInt(p.d)) / 2.0;
 
     if (!Boo.SPACE.contains(point) or Boo.hitsWall(point, radius)) {
@@ -96,16 +96,21 @@ const eye_pupil_style: ff.Style = .{
 
 pub fn render(p: *Player) void {
     const sp = Boo.cam.screen(p.pos);
+    const pt = ff.Point.from_vec(p.vel);
 
     Circle.new(
-        sp.add(ff.Point.from_vec(p.vel).mul(.new(-@divTrunc(p.d, 2), -@divTrunc(p.d, 2)))),
+        sp.add(pt.mul(
+            .new(-@divTrunc(p.d, 2), -@divTrunc(p.d, 2)),
+        )),
         @intFromFloat(p.r * 0.004),
     ).draw(.{
         .fill_color = .yellow,
     });
 
     Circle.new(
-        sp.add(ff.Point.from_vec(p.vel).mul(.new(-@divTrunc(p.d, 4), -@divTrunc(p.d, 4)))),
+        sp.add(pt.mul(
+            .new(-@divTrunc(p.d, 4), -@divTrunc(p.d, 4)),
+        )),
         @intFromFloat(p.r * 0.01),
     ).draw(.{
         .fill_color = .white,
@@ -135,9 +140,12 @@ pub fn render(p: *Player) void {
         const pup_size = @divTrunc(eye_size, 2);
 
         { // Right eye
-            const right_eye_pos = sp.add(ff.Point.from_vec(forward + side));
+            const right_eye_pos = sp.add(
+                .from_vec(forward + side),
+            );
+
             const right_pup_pos = right_eye_pos.add(
-                ff.Point.from_vec((forward * half) + side * half),
+                .from_vec((forward * half) + side * half),
             );
 
             Circle.new(right_eye_pos, eye_size).draw(eye_white_style);
@@ -145,9 +153,12 @@ pub fn render(p: *Player) void {
         }
 
         { // Left eye
-            const left_eye_pos = sp.add(ff.Point.from_vec(forward - side));
+            const left_eye_pos = sp.add(
+                .from_vec(forward - side),
+            );
+
             const left_pup_pos = left_eye_pos.add(
-                ff.Point.from_vec((forward * half) - side * half),
+                .from_vec((forward * half) - side * half),
             );
 
             Circle.new(left_eye_pos, eye_size).draw(eye_white_style);
