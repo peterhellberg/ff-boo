@@ -107,7 +107,7 @@ const GHOST_COLORS = [NUM_GHOSTS_MAX]ff.Color{
     .light_green,
     .blue,
     .purple,
-    .green,
+    .dark_gray,
     .light_blue,
 };
 
@@ -415,7 +415,7 @@ const Over = struct {
 
         if (best_time_s > 0) {
             const t: u64 = best_time_s;
-            b = std.fmt.bufPrint(&hud_buf, "SOULS {d} BEST NIGHT {d}:{d:0>2}", .{
+            b = std.fmt.bufPrint(&hud_buf, "SOULS {d} FASTEST {d}:{d:0>2}", .{
                 total_buried,
                 t / 60,
                 t % 60,
