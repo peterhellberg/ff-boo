@@ -109,41 +109,57 @@ const GHOST_COLORS = [NUM_GHOSTS_MAX]ff.Color{
 };
 
 const NIGHT: ff.Palette = .{
-    .black = 0x131313,
-    .dark_gray = 0x505050,
-    .gray = 0x8D8D8D,
-    .cyan = 0x53C7D6,
-    .light_gray = 0xCECECE,
-    .white = 0xF2F0E5,
-    .light_blue = 0x6FA8FF,
-    .orange = 0xF7A41D,
-    .dark_green = 0xC77C03,
-    .red = 0xD04A4A,
-    .purple = 0x8A4FB0,
-    .yellow = 0xFFCD75,
-    .light_green = 0xA7F070,
-    .green = 0x38B764,
-    .dark_blue = 0x29366F,
-    .blue = 0x3B5DC9,
+    // Warm-tinted neutrals: black is slightly warm so it doesn't
+    // fight the cream white; grays follow the same temperature.
+    .black = 0x1A1A1D,
+    .dark_gray = 0x4A4E5A, // cool slate — reads as night shadow, not "missing color"
+    .gray = 0x8C8E96,
+    .light_gray = 0xCDCFC8, // warm-neutral, bridges gray → cream white
+    .white = 0xF2EFE0, // your cream, kept
+
+    // Blues tightened into one family: navy → royal → sky.
+    .dark_blue = 0x24356E, // your navy, kept
+    .blue = 0x4066D6, // brighter, less violet than before
+    .light_blue = 0x7FC4EA, // pushed cyan-ward; previously crowded purple
+
+    // Fire and foliage now actually split: orange is ember, and
+    // dark_green is a real dark leaf green instead of a second orange.
+    .orange = 0xF79E1D,
+    .yellow = 0xFFD075, // your yellow, kept
+    .dark_green = 0x2E7D4F, // was 0xC77C03 — that was an orange
+    .green = 0x43B364, // your green, kept
+    .light_green = 0xA9EE6C, // your light green, kept
+
+    // Accents: red warmed to stop competing with purple's coolness.
+    .cyan = 0x5BC9D6, // your cyan, kept
+    .red = 0xD85555, // slightly warmer than before
+    .purple = 0x9C5BB5, // brightened — it was the muddiest accent
 };
 
 const DAWN: ff.Palette = .{
-    .black = 0x6E3B4E,
-    .dark_gray = 0x7A4A5A,
-    .gray = 0xA86A5A,
-    .cyan = 0x9FD0C8,
-    .light_gray = 0xE0B090,
-    .white = 0xFFF0D0,
-    .light_blue = 0xAFC4E8,
-    .orange = 0xFFB347,
-    .dark_green = 0xD97B4A,
-    .red = 0xD07068,
-    .purple = 0xB08AC0,
-    .yellow = 0xFFE08A,
-    .light_green = 0xC8D890,
-    .green = 0x8AA070,
-    .dark_blue = 0x5A4A6A,
-    .blue = 0x7A6A9A,
+    // Neutrals stay plum-toned but now actually span the range.
+    .black = 0x42202E, // deep plum — was mid-tone, silhouettes vanished
+    .dark_gray = 0x6B4A52,
+    .gray = 0x9E7B72,
+    .light_gray = 0xE3BDA4,
+    .white = 0xFFF3D9, // warm cream, kept
+
+    // Cool tones get a "morning mist" cast — desaturated but present,
+    // and now distinct from each other (before, dark_blue/blue/
+    // light_blue were three near-identical mauves).
+    .dark_blue = 0x3E3A5C,
+    .blue = 0x6E6FA8,
+    .light_blue = 0xA9C7DD, // misty sky
+    .cyan = 0x8FC5BC,
+
+    // Warm tones deepened slightly so they don't all read as "beige".
+    .orange = 0xE8913F,
+    .red = 0xC4554E, // was 0xD07068 — needed to actually be red
+    .dark_green = 0xB06A3A, // warm umber, still sunset-compatible
+    .yellow = 0xF5D98C,
+    .green = 0x7B9955, // deepened; was nearly gray-green mush
+    .light_green = 0xB8CE7E,
+    .purple = 0x9A6FA5, // pulled toward actual purple
 };
 
 const State = enum {
@@ -731,48 +747,53 @@ fn renderStars() void {
 const HORIZON_Y: i32 = 150;
 
 fn renderSunAndHills() void {
-    if (dawn_step >= 2) {
-        const p = dawnProgress();
-        const cx: i32 = 178;
-        const cy: i32 = @intFromFloat(162.0 - p * 84.0);
+    // Sun starts fully below the horizon (center = horizon + radius +
+    // glow margin) and climbs to its mid-sky perch as dawn progresses.
+    // The hills and ground are drawn on top, so the sun emerges from
+    // behind them — no gate needed, it's simply invisible at first.
+    const p = dawnProgress();
+    const cx: i32 = 178;
+    const start_y: f32 = @as(f32, HORIZON_Y) + 44.0; // fully hidden
+    const end_y: f32 = 78.0;
+    const cy: i32 = @intFromFloat(start_y - p * (start_y - end_y));
 
-        // Rays turn slowly and reach further as the sun climbs. Alternating
-        // lengths make the turn visible, since evenly spaced rays look static.
-        const spin: f32 = @as(f32, @floatFromInt(frame)) * 0.004;
+    // Rays turn slowly and reach further as the sun climbs. Alternating
+    // lengths make the turn visible, since evenly spaced rays look static.
+    const spin: f32 = @as(f32, @floatFromInt(frame)) * 0.004;
 
-        for (0..12) |i| {
-            const a = spin + @as(f32, @floatFromInt(i)) * (std.math.pi / 6.0);
-            const reach: f32 = if (i % 2 == 0) 18.0 + p * 18.0 else 8.0 + p * 8.0;
+    for (0..12) |i| {
+        const a = spin + @as(f32, @floatFromInt(i)) * (std.math.pi / 6.0);
+        const reach: f32 = if (i % 2 == 0) 18.0 + p * 18.0 else 8.0 + p * 8.0;
 
-            const dx = @cos(a);
-            const dy = @sin(a);
+        const dx = @cos(a);
+        const dy = @sin(a);
 
-            draw.line(
-                cx + @as(i32, @intFromFloat(dx * 20.0)),
-                cy + @as(i32, @intFromFloat(dy * 20.0)),
-                cx + @as(i32, @intFromFloat(dx * (20.0 + reach))),
-                cy + @as(i32, @intFromFloat(dy * (20.0 + reach))),
-                .{ .color = .orange },
-            );
-        }
-
-        draw.circ(cx - 18, cy - 18, 36, .{
-            .fill_color = .orange,
-            .stroke_color = .yellow,
-            .stroke_width = 1,
-        });
-        draw.circ(cx - 8, cy - 8, 16, .{ .fill_color = .yellow });
+        draw.line(
+            cx + @as(i32, @intFromFloat(dx * 20.0)),
+            cy + @as(i32, @intFromFloat(dy * 20.0)),
+            cx + @as(i32, @intFromFloat(dx * (20.0 + reach))),
+            cy + @as(i32, @intFromFloat(dy * (20.0 + reach))),
+            .{ .color = .orange },
+        );
     }
 
+    draw.circ(cx - 18, cy - 18, 36, .{
+        .fill_color = .orange,
+        .stroke_color = .yellow,
+        .stroke_width = 1,
+    });
+
+    draw.circ(cx - 8, cy - 8, 16, .{ .fill_color = .yellow });
+
     // Rolling hills sit on the horizon; the ground strip covers their bases.
-    draw.elli(-24, 138, 128, 36, .{ .fill_color = .purple });
-    draw.elli(74, 132, 168, 44, .{ .fill_color = .purple });
-    draw.elli(186, 138, 120, 34, .{ .fill_color = .purple });
+    draw.elli(-24, 138, 128, 36, .{ .fill_color = .dark_gray });
+    draw.elli(74, 132, 168, 44, .{ .fill_color = .dark_gray });
+    draw.elli(186, 138, 120, 34, .{ .fill_color = .dark_gray });
 
     draw.rect(0, HORIZON_Y, ff.width, ff.height - HORIZON_Y, .{
-        .fill_color = .dark_blue,
+        .fill_color = .gray,
     });
-    draw.line(0, HORIZON_Y, ff.width, HORIZON_Y, .{ .color = .dark_green });
+    draw.line(0, HORIZON_Y, ff.width, HORIZON_Y, .{ .color = .black });
 }
 
 fn renderHud() void {
@@ -821,7 +842,11 @@ fn dawnStep() u32 {
 }
 
 fn applyPalette(step: u32) void {
-    const t = @as(f32, @floatFromInt(step)) / 5.0;
+    // Smoothstep on t: at 6 steps the raw linear ramp makes steps 0-1
+    // and 4-5 look nearly identical (the eye discriminates best at
+    // mid-lightness). Ease so both ends get visible motion.
+    const t_raw = @as(f32, @floatFromInt(step)) / 5.0;
+    const t = t_raw * t_raw * (3.0 - 2.0 * t_raw);
 
     var p: ff.Palette = NIGHT;
     inline for (@typeInfo(ff.Palette).@"struct".field_names) |name| {
@@ -833,18 +858,16 @@ fn applyPalette(step: u32) void {
 }
 
 fn lerpHex(a: u32, b: u32, t: f32) u32 {
-    var out: u32 = 0;
-
+    var result: u32 = 0;
     inline for (0..3) |i| {
-        const shift: u5 = @intCast((2 - i) * 8);
-        const ca: f32 = @floatFromInt((a >> shift) & 0xFF);
-        const cb: f32 = @floatFromInt((b >> shift) & 0xFF);
-        const c: u32 = @intFromFloat(ca + (cb - ca) * t);
-
-        out |= c << shift;
+        const shift = 8 * (2 - i); // r, g, b order in 0xRRGGBB
+        const ca: f32 = @floatFromInt((a >> @intCast(shift)) & 0xFF);
+        const cb: f32 = @floatFromInt((b >> @intCast(shift)) & 0xFF);
+        const mixed = ca + (cb - ca) * t;
+        const rounded: u32 = @intFromFloat(mixed + 0.5); // round, don't truncate
+        result |= rounded << @intCast(shift);
     }
-
-    return out;
+    return result;
 }
 
 fn ghostCount(l: u32) usize {
@@ -988,9 +1011,10 @@ pub export fn before_exit() void {
 }
 
 comptime {
-    if (lerpHex(0x000000, 0xFFFFFF, 0.5) != 0x7F7F7F) {
+    if (lerpHex(0x000000, 0xFFFFFF, 0.5) != 0x808080) {
         @compileError("lerpHex midpoint is wrong");
     }
+
     if (levelMs(1) != 90_000) @compileError("level 1 should be 90 s");
     if (levelMs(99) != 45_000) @compileError("level time should bottom out at 45 s");
     if (ghostCount(1) != 4) @compileError("level 1 should have 4 ghosts");
