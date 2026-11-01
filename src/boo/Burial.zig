@@ -146,7 +146,7 @@ pub fn render(cam: anytype, draw: anytype) void {
     // Particles: shrink from 3x3 to 1x1 as they die.
     for (particles[0..particle_count]) |p| {
         const t = p.life / p.max_life; // 1.0 -> 0.0
-        const sp = cam.screen(ff.Point.new(
+        const sp = cam.screen(.new(
             @intFromFloat(@round(p.x)),
             @intFromFloat(@round(p.y)),
         ));
@@ -167,7 +167,7 @@ pub fn render(cam: anytype, draw: anytype) void {
     // Flashes: ghost-colored expanding ring, drawn under popups.
     for (flashes[0..flash_count]) |f| {
         const t = f.timer / FLASH_DURATION; // 1.0 -> 0.0
-        const sp = cam.screen(ff.Point.new(
+        const sp = cam.screen(.new(
             @intFromFloat(@round(f.x)),
             @intFromFloat(@round(f.y)),
         ));
@@ -182,7 +182,7 @@ pub fn render(cam: anytype, draw: anytype) void {
 
     // Popups on top.
     for (popups[0..popup_count]) |p| {
-        const sp = cam.screen(ff.Point.new(
+        const sp = cam.screen(.new(
             @intFromFloat(@round(p.x)),
             @intFromFloat(@round(p.y)),
         ));
