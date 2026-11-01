@@ -15,7 +15,10 @@ const Star = @import("boo/Star.zig");
 
 const CLEAR_FRAMES = 120;
 const BOARD_SCORE: ff.Board = 1;
-const BADGE_SHEPHERD: ff.Badge = 1;
+
+const BADGE_GRAVEDIGGER: ff.Badge = 1;
+const BADGE_GHOSTBUSTER: ff.Badge = 2;
+const BADGE_SHEPHERD: ff.Badge = 3;
 
 pub const DT: f32 = 1.0 / 60.0;
 pub const SIZE_SPACE = 3;
@@ -735,7 +738,12 @@ fn buryGhosts() void {
             run_score += 100;
             total_buried += 1;
 
-            _ = ff.addProgress(ff.getMe(), BADGE_SHEPHERD, 1);
+            const me = ff.getMe();
+
+            _ = ff.addProgress(me, BADGE_GRAVEDIGGER, 1);
+            _ = ff.addProgress(me, BADGE_GHOSTBUSTER, 1);
+            _ = ff.addProgress(me, BADGE_SHEPHERD, 1);
+
             burialSound();
         }
     }

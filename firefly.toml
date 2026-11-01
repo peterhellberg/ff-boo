@@ -16,4 +16,6 @@ font = { path = "eg_6x12.fff" }
 1 = { name = "best run", min = 0 }
 
 [badges]
-1 = { name = "Shepherd", descr = "Put 50 ghosts to rest", steps = 50 }
+1 = { name = "Gravedigger", descr = "Put 50 ghosts to rest", steps = 50, hidden = 10, xp = 1 }
+3 = { name = "Ghostbuster", descr = "Put 500 ghosts to rest", steps = 500, hidden = 50, xp = 5 }
+2 = { name = "Shepherd", descr = "Put 1000 ghosts to rest", steps = 1000, hidden = 500, xp = 10 }
