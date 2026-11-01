@@ -44,7 +44,7 @@ deploy: export
 		ssh ${HOSTNAME} 'mkdir -p ${SERVER_PATH}/shots'; \
 		ff shots download ${AUTHOR_ID}.${APP_ID};   			\
 		if ls ./*.png >/dev/null 2>&1; then \
-			scp -q -r ./*.png HOSTNAME:{HOSTNAME}:HOSTNAME:{SERVER_PATH}/shots/; \
+			scp -q -r ./*.png ${HOSTNAME}:${SERVER_PATH}/shots/; \
 			rm -f ./*.png; \
 		fi; \
 		echo "✔ Screens ${APP_URL}/shots/?layout=grid"; \
