@@ -88,7 +88,7 @@ const WALL_THICKNESS: i32 = 10;
 const BRAID_PERCENT: u32 = 25;
 
 // Start in the middle of a cell so no wall can spawn on top of the shepherd.
-const START = ff.Point.new(
+const START: ff.Point = .new(
     CELL * @as(i32, @intCast(MAZE_COLS / 2)) + @divTrunc(CELL, 2),
     CELL * @as(i32, @intCast(MAZE_ROWS / 2)) + @divTrunc(CELL, 2),
 );
