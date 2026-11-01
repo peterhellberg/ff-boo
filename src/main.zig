@@ -13,8 +13,11 @@ const Random = @import("boo/Random.zig");
 const Sound = @import("boo/Sound.zig");
 const Star = @import("boo/Star.zig");
 
-pub const DT: f32 = 1.0 / 60.0;
+const CLEAR_FRAMES = 120;
+const BOARD_SCORE: ff.Board = 1;
+const BADGE_SHEPHERD: ff.Badge = 1;
 
+pub const DT: f32 = 1.0 / 60.0;
 pub const SIZE_SPACE = 3;
 pub const SIZE_PLAYER = 21;
 pub const NUM_STARS = 128;
@@ -26,10 +29,6 @@ pub const SPACE = ff.Rect.new(
     ff.width * SIZE_SPACE,
     ff.height * SIZE_SPACE,
 );
-
-const CLEAR_FRAMES = 120;
-const BOARD_SCORE: ff.Board = 1;
-const BADGE_SHEPHERD: ff.Badge = 1;
 
 pub var pad: ff.Pad = .{ .x = 0, .y = 0 };
 pub var cam: Camera = .{};
