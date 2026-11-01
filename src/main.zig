@@ -676,10 +676,37 @@ fn pointRectDist(p: ff.Point, r: ff.Rect) f32 {
     return @sqrt(dx * dx + dy * dy);
 }
 
+fn pointRectDistSq(p: ff.Point, r: ff.Rect) f32 {
+    const min = r.min();
+    const max = r.max();
+
+    const px: f32 = @floatFromInt(p.x);
+    const py: f32 = @floatFromInt(p.y);
+
+    const cx = @max(
+        @as(f32, @floatFromInt(min.x)),
+        @min(px, @as(f32, @floatFromInt(max.x))),
+    );
+
+    const cy = @max(
+        @as(f32, @floatFromInt(min.y)),
+        @min(py, @as(f32, @floatFromInt(max.y))),
+    );
+
+    const dx = px - cx;
+    const dy = py - cy;
+
+    return dx * dx + dy * dy;
+}
+
 /// True when a circle at `p` overlaps any wall. Ghosts ignore this.
 pub fn hitsWall(p: ff.Point, radius: f32) bool {
+    const radius_sq = radius * radius;
+
     for (walls[0..wall_count]) |w| {
-        if (pointRectDist(p, w) < radius) return true;
+        if (pointRectDistSq(p, w) < radius_sq) {
+            return true;
+        }
     }
 
     return false;
