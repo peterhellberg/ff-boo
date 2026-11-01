@@ -780,33 +780,59 @@ fn renderWalls() void {
 
         const p = cam.screen(w.point);
         const horizontal = w.size.width >= w.size.height;
-        const long = if (horizontal) w.size.width else w.size.height;
 
+        // Base fill + dark outer outline.
         draw.rect(p.x, p.y, w.size.width, w.size.height, .{
             .fill_color = .dark_gray,
-            .stroke_color = .gray,
+            .stroke_color = .black,
             .stroke_width = 1,
         });
 
-        // Brick seams, one every 14 px along the long axis.
-        var offset: i32 = 14;
-        while (offset < long) : (offset += 14) {
-            if (horizontal) {
-                draw.line(
-                    p.x + offset,
-                    p.y + 1,
-                    p.x + offset,
-                    p.y + w.size.height - 1,
-                    .{ .color = .gray },
-                );
-            } else {
-                draw.line(
-                    p.x + 1,
-                    p.y + offset,
-                    p.x + w.size.width - 1,
-                    p.y + offset,
-                    .{ .color = .gray },
-                );
+        // Bevel: light top-left, dark bottom-right, gives the wall height.
+        draw.line(p.x, p.y, p.x + w.size.width - 1, p.y, .{ .color = .gray });
+        draw.line(p.x, p.y, p.x, p.y + w.size.height - 1, .{ .color = .gray });
+        draw.line(p.x, p.y + w.size.height - 1, p.x + w.size.width - 1, p.y + w.size.height - 1, .{ .color = .black });
+        draw.line(p.x + w.size.width - 1, p.y, p.x + w.size.width - 1, p.y + w.size.height - 1, .{ .color = .black });
+
+        // Inner field where bricks live (inside the bevel).
+        const bx = p.x + 1;
+        const by = p.y + 1;
+        const bw = w.size.width - 2;
+        const bh = w.size.height - 2;
+        if (bw <= 0 or bh <= 0) continue;
+
+        // Brick coursing: rows every 8 px along the short axis, bricks 16 px
+        // long along the running axis, alternate rows offset by half a brick.
+        const brick_len: i32 = 16;
+        const row_h: i32 = 8;
+
+        if (horizontal) {
+            var row: i32 = 0;
+            while (row < bh) : (row += row_h) {
+                // Horizontal mortar line across the row bottom.
+                if (row > 0) {
+                    draw.line(bx, by + row, bx + bw - 1, by + row, .{ .color = .gray });
+                }
+                // Vertical joints, staggered per row.
+                const stagger = if (@mod(@divTrunc(row, row_h), 2) == 1) brick_len / 2 else 0;
+                var joint = stagger;
+                while (joint < bw) : (joint += brick_len) {
+                    if (joint == 0) continue;
+                    draw.line(bx + joint, by + row, bx + joint, by + @min(row + row_h, bh) - 1, .{ .color = .gray });
+                }
+            }
+        } else {
+            var row: i32 = 0;
+            while (row < bw) : (row += row_h) {
+                if (row > 0) {
+                    draw.line(bx + row, by, bx + row, by + bh - 1, .{ .color = .gray });
+                }
+                const stagger = if (@mod(@divTrunc(row, row_h), 2) == 1) brick_len / 2 else 0;
+                var joint = stagger;
+                while (joint < bh) : (joint += brick_len) {
+                    if (joint == 0) continue;
+                    draw.line(bx + row, by + joint, bx + @min(row + row_h, bw) - 1, by + joint, .{ .color = .gray });
+                }
             }
         }
     }
