@@ -13,7 +13,7 @@ built on the [ff](https://github.com/peterhellberg/ff) SDK 🎮
 ## How to play
 
 - **Move** around the graveyard (DPad or touchpad — `readPad`/`readButtons`) to approach wandering ghosts.
-- **Walls** block your path — walk around them. Ghosts drift straight through.
+- **Walls** form a loose maze — walk around them. Ghosts drift straight through.
 - Ghosts within range will **follow you** — lead them gently, don't lose them.
 - Guide each ghost to its **grave** before the countdown hits zero.
 - The palette slowly brightens as dawn approaches
@@ -43,7 +43,7 @@ zig build test
 - **Steering:** ghosts wander, then seek a point just behind the shepherd when
     close, using `Point`/`Vec` math (lerp, dot, len) from the SDK.
 - **Dawn:** timer-driven palette shift via `getTime()` and `Color.set`.
-- **Levels:** procedural grave and wall layout generated with `getRandom()`
+- **Levels:** procedural grave and maze layout generated with `getRandom()`
     (`setSeed` for reproducible layouts) — no level editor needed.
 - **Persistence:** best times and progress stored with `saveStash`/`loadStash`,
     plus `addScore` (boards) and `addProgress` (badges) where appropriate.

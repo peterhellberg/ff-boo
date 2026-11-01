@@ -42,6 +42,8 @@ second game mode. Nothing from the old predator/prey rules is kept.
 - The world is `SPACE`, the same as today:
   `ff.width * SIZE_SPACE` by `ff.height * SIZE_SPACE` = **720 x 480**.
 - The screen is 240 x 160. The camera is one screen big.
+- The shepherd starts at `START`, the centre of maze cell (6, 4), not the exact
+  world centre. This keeps the spawn off every cell boundary.
 - `Camera.center(player.pos)` then `Camera.clamp(SPACE)` runs every update.
 - Every world object is drawn through `cam.screen(pos)` and culled with
   `cam.sees(point)` or `cam.intersects(rect)`.
@@ -148,20 +150,26 @@ const Grave = struct {
 
 ### 5.4 Walls
 
-Static axis-aligned rectangles in `main.zig`, generated per level:
+Static axis-aligned rectangles in `main.zig`, one per open maze boundary:
 
 ```zig
-const MAX_WALLS = 8;
+const MAZE_COLS = 12;
+const MAZE_ROWS = 8;
+const CELL: i32 = 60;
+const MAX_WALLS = (MAZE_COLS - 1) * MAZE_ROWS + MAZE_COLS * (MAZE_ROWS - 1);
 var walls: [MAX_WALLS]ff.Rect;
 var wall_count: usize;
 ```
 
-- Count: `@min(4 + level / 2, 8)` -> 4 on level 1, 8 from level 8.
-- Each wall is 48-119 px long and 10 px thick, horizontal or vertical, at
-  least 24 px from the world edge.
-- Rejected when it comes within 64 px of the shepherd's start, within 32 px of
-  any grave, or within 20 px of another wall. 400 attempts, then generation
-  stops early, so it can never hang.
+- The world is exactly 12 x 8 cells of 60 px.
+- A randomized depth-first search carves a perfect maze over the 96 cells.
+- Braiding then removes `BRAID_PERCENT` (25%) of the remaining walls, so the
+  maze has loops instead of dead ends. About 58 walls survive.
+- Each wall is a 60 px long, 10 px thick segment centred on a cell boundary.
+- A segment within 32 px of a grave is dropped, which keeps every grave
+  approachable.
+- The shepherd starts at `START`, the centre of cell (6, 4), 30 px from the
+  nearest boundary, so no wall can spawn on top of it.
 - Drawn as a `.dark_gray` rect with a `.gray` outline and brick seams every
   14 px.
 - Collision is circle-vs-rect: the closest point on the rect to the shepherd's
@@ -256,7 +264,7 @@ if (ghost.pos.sub(graves[i].pos).len() < BURY_RADIUS) {
 - Graves:
   - Sample `Random.pos` inside an inner rect with a 48 px margin.
   - Reject a position closer than 96 px to an already placed grave, and closer
-    than 80 px to the world centre (the shepherd spawn).
+    than 80 px to the shepherd's start.
   - Give up after 200 tries and accept the last candidate, so generation can
     never hang.
 - Ghosts:
@@ -268,8 +276,8 @@ if (ghost.pos.sub(graves[i].pos).len() < BURY_RADIUS) {
   - Assign `GHOST_COLORS[i]` from a fixed table, most distinct first:
     `.white, .red, .cyan, .light_green, .blue, .purple, .green, .light_blue`.
     Yellow and orange are reserved for the shepherd.
-- Walls: `@min(4 + level / 2, 8)` rects placed after graves, using the rules in
-  5.4.
+- Walls: carve the 12 x 8 cell maze described in 5.4 after placing the graves,
+  dropping segments that would crowd a grave.
 
 `ff.setSeed` is only called from `generate`, never in `boot`, so the menu stars
 still look different on each launch.
@@ -501,8 +509,7 @@ and no sound on the menu.
    - `lerpHex(0x000000, 0xFFFFFF, 0.5) == 0x7F7F7F`
    - `levelMs(1) == 90_000` and `levelMs(99) == 45_000`
    - `ghostCount(1) == 4` and `ghostCount(99) == 8`
-   - `wallCount(1) == 4` and `wallCount(99) == MAX_WALLS`
-   - `pointRectDist` and `rectsOverlap` on a known rect
+   - `pointRectDist` on a known rect
    - stash offsets fit the 16-byte buffer
 
 ## 14. Verification
