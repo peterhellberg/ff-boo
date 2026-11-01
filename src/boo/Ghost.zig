@@ -20,11 +20,11 @@ pub const RADIUS: i32 = 9;
 pub const BURY_RADIUS: f32 = 16.0;
 pub const SEPARATION: f32 = 18.0;
 
-const WANDER_SPEED: f32 = 0.35;
-const FOLLOW_SPEED: f32 = 2.4;
-const FOLLOW_RADIUS: f32 = 64.0;
-const LOSE_RADIUS: f32 = 140.0;
-const TRAIL_DISTANCE: f32 = 26.0;
+const WANDER_SPEED: f32 = 0.3;
+const FOLLOW_SPEED: f32 = 1.9;
+const FOLLOW_RADIUS: f32 = 56.0;
+const LOSE_RADIUS: f32 = 150.0;
+const TRAIL_DISTANCE: f32 = 30.0;
 
 pub fn spawn(self: *Ghost, grave: ff.Point) void {
     self.pos = spawnPos(grave);
