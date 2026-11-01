@@ -226,15 +226,70 @@ const Menu = struct {
         if (cheats.stateFlip and !btn.s and old.s) enterOver();
     }
 
+    fn textBlockCentered(
+        lines: []const []const u8,
+        colors: []const ff.Color,
+        cx: i32,
+        band_y: i32,
+        band_h: i32,
+        pitch: i32,
+    ) void {
+        const line_h: i32 = 8;
+        const block_h = @as(i32, @intCast(lines.len - 1)) * pitch + line_h;
+        var y = band_y + @divTrunc(band_h - block_h, 2);
+        for (lines, colors) |line, col| {
+            textCentered(line, cx, y, col);
+            y += pitch;
+        }
+    }
+
     fn render(self: *Menu) void {
         renderStars();
 
-        text("peter.boo", .new(93, 45), if (self.blink) .white else .light_gray);
-        text("A FRIENDLY GHOST SHEPHERD", .new(36, 70), .light_gray);
-        text("MOVE WITH THE TOUCHPAD", .new(48, 100), .cyan);
-        text("GET CLOSE TO MAKE GHOSTS FOLLOW", .new(18, 112), .cyan);
-        text("LEAD THEM TO THEIR MATCHING GRAVE", .new(18, 124), .cyan);
-        text("PRESS (E) TO START GAME!", .new(48, 144), .white);
+        // Title panel: y 26..68, center 47
+        cpanel(35, 26, 170, 42, .{
+            .fill_color = .dark_gray,
+        });
+        textBlockCentered(
+            &.{ "peter.boo", "A FRIENDLY GHOST SHEPHERD" },
+            &.{
+                if (self.blink) .yellow else .orange,
+                .light_gray,
+            },
+            120,
+            30,
+            42,
+            14,
+        );
+
+        // Instructions panel: y 78..122, center 100
+        cpanel(10, 78, 220, 44, .{
+            .fill_color = .dark_blue,
+        });
+        textBlockCentered(
+            &.{
+                "MOVE WITH THE TOUCHPAD",
+                "GET CLOSE TO MAKE GHOSTS FOLLOW",
+                "LEAD THEM TO THEIR MATCHING GRAVE",
+            },
+            &.{ ff.Color.blue, ff.Color.cyan, ff.Color.light_blue },
+            120,
+            84,
+            44,
+            14,
+        );
+
+        // Prompt, centered in the gap below the panel
+        if (self.blink) {
+            textBlockCentered(
+                &.{"PRESS (E) TO START GAME!"},
+                &.{ff.Color.white},
+                120,
+                122,
+                38,
+                12,
+            );
+        }
     }
 };
 
@@ -337,19 +392,19 @@ const Over = struct {
         renderWorld(false);
         renderSunAndHills();
 
-        panel(42, 40, 156, 118);
+        panel(42, 26, 156, 118);
 
-        textCentered("DAWN", 120, 55, .white);
-        textCentered("THE NIGHT IS OVER", 120, 75, .light_gray);
+        textCentered("DAWN", 120, 41, .white);
+        textCentered("THE NIGHT IS OVER", 120, 61, .light_gray);
 
         var b = std.fmt.bufPrint(&hud_buf, "SCORE {d}", .{run_score}) catch return;
-        textCentered(b, 120, 95, .yellow);
+        textCentered(b, 120, 81, .yellow);
 
         b = std.fmt.bufPrint(&hud_buf, "BEST {d} N{d}", .{
             best_score,
             best_level,
         }) catch return;
-        textCentered(b, 120, 107, .light_gray);
+        textCentered(b, 120, 93, .light_gray);
 
         if (best_time_s > 0) {
             const t: u64 = best_time_s;
@@ -361,10 +416,10 @@ const Over = struct {
         } else {
             b = std.fmt.bufPrint(&hud_buf, "SOULS {d}", .{total_buried}) catch return;
         }
-        textCentered(b, 120, 119, .cyan);
+        textCentered(b, 120, 105, .cyan);
 
-        textCentered("PRESS (E) TO PLAY AGAIN!", 120, 132, .white);
-        textCentered("(N) FOR MENU", 120, 144, .light_gray);
+        textCentered("PRESS (E) TO PLAY AGAIN!", 120, 118, .white);
+        textCentered("(N) FOR MENU", 120, 130, .light_gray);
     }
 };
 
@@ -989,11 +1044,15 @@ pub fn text(t: ff.String, p: ff.Point, c: ff.Color) void {
 
 /// Opaque rounded panel so overlay text stays readable over the board.
 fn panel(x: i32, y: i32, w: i32, h: i32) void {
-    draw.rrect(x, y, w, h, 6, 6, .{
+    cpanel(x, y, w, h, .{
         .fill_color = .black,
         .stroke_color = .gray,
         .stroke_width = 1,
     });
+}
+
+fn cpanel(x: i32, y: i32, w: i32, h: i32, s: ff.Style) void {
+    draw.rrect(x, y, w, h, 6, 6, s);
 }
 
 fn textCentered(t: ff.String, cx: i32, y: i32, c: ff.Color) void {
