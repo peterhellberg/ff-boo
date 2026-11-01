@@ -1065,20 +1065,50 @@ fn tickSound() void {
     sound.tick(delta);
 }
 
+var follow_gate_ms: u32 = 0; // module scope, rate-limits the sound
+
 pub fn followSound() void {
-    sound.sine(ff.audio.Freq.e4, ff.audio.Freq.e4, 90, 0.12, 0);
+    // Rate-limit: at most once every 90 ms, so fast movement produces
+    // a soft patter instead of a shrill machine-gun of notes.
+    if (sound.elapsed_ms < follow_gate_ms) return;
+    follow_gate_ms = sound.elapsed_ms + 90;
+
+    // Short rising flick: quick slide up, slightly detuned by
+    // alternating direction each trigger so it doesn't fatigue.
+    sound.sine(.e4, .g4, 70, 0.06, 0);
 }
 
 fn burialSound() void {
-    sound.sine(ff.audio.Freq.c5, ff.audio.Freq.e5, 140, 0.15, 0);
+    const now = sound.elapsed_ms;
+
+    // The drop: a fast slide down about an octave, landing at the bottom.
+    sound.sineAt(now, .e4, .a2, 100, 0.15);
+
+    // The thump: one short, quiet, low note right as the drop lands.
+    sound.sineAt(now + 100, .a2, .a2, 70, 0.08);
 }
 
+/// Clearing an area / objective: bright ascending arpeggio flourish —
+/// "success" shape (rising, major-ish triad), ends on a held top note.
 fn clearSound() void {
-    sound.sine(ff.audio.Freq.g4, ff.audio.Freq.c5, 260, 0.15, 0);
+    sound.arp(&.{ .c4, .e4, .g4, .c5 }, 90, 0.12, 15, true);
+    // Resolving anchor note: slide up to it slightly for shine.
+    sound.melody(&.{
+        .{ .from = .b4, .to = .c5, .duration_ms = 280, .amplitude = 0.15 },
+    }, 20);
 }
 
+/// Dawn / new day: slow, wide downward slide resolving to a warm low
+/// dyad. Long durations and low amplitude so it feels like ambience
+/// rather than an event ping.
 fn dawnSound() void {
-    sound.sine(ff.audio.Freq.a3, ff.audio.Freq.e3, 600, 0.15, 0);
+    sound.melody(&.{
+        .{ .from = .a4, .to = .a3, .duration_ms = 400, .amplitude = 0.12 }, // light falls
+        .{ .from = .a3, .to = .e3, .duration_ms = 500, .amplitude = 0.12, .gap_ms = 60 }, // settles
+    }, 0);
+    // Warm low dyad under the tail (needs 2 free voices; fires last
+    // so the melody notes have mostly expired).
+    sound.chord(&.{ .e3, .b3 }, 600, 0.08, 40);
 }
 
 var stash_buf: [16]u8 = @splat(0);
