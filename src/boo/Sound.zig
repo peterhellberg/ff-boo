@@ -173,26 +173,30 @@ pub fn tick(self: *Sound, delta_ms: u32) void {
     while (i < self.queue_len) {
         var sound = self.queue[i];
 
-        const local_ms: i32 = @as(i32, @intCast(self.elapsed_ms)) -
-            @as(i32, @intCast(sound.start_ms));
+        const has_started = self.elapsed_ms >= sound.start_ms;
+        const local_ms: u32 = if (has_started)
+            self.elapsed_ms - sound.start_ms
+        else
+            0;
 
         // Remove only after the audible end PLUS the silent tail.
-        if (local_ms >= @as(i32, @intCast(sound.duration_ms + tail_ms))) {
+        if (has_started and local_ms >= sound.duration_ms + tail_ms) {
             self.queue_len -= 1;
-            if (i != self.queue_len) self.queue[i] = self.queue[self.queue_len];
-            // Re-check slot i, it now holds the entry swapped in from the tail.
+
+            if (i != self.queue_len) {
+                self.queue[i] = self.queue[self.queue_len];
+            }
+
             continue;
         }
 
-        if (!sound.started and local_ms >= 0) {
+        if (!sound.started and has_started) {
             const slot = self.index;
             const s = &self.sines[slot];
             const g = &self.gains[slot];
 
             self.index = (self.index + 1) % self.sines.len;
 
-            // Clear all modulators left over from whatever note last
-            // used this voice.
             g.node.reset_all();
 
             s.modulate(.{
