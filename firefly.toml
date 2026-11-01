@@ -3,6 +3,11 @@ app_name = "boo"
 author_id = "peter"
 author_name = "Peter Hellberg"
 
+[cheats]
+toggle-follow-lines = 1 # Toggle follow lines
+allow-state-flips = 2 # Allow flipping between states
+jump-to-game = 3 # Pin the state to Game/Menu, for profiling
+
 [files]
 font = { path = "eg_6x12.fff" }
 
