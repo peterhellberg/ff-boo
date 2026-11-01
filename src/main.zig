@@ -480,7 +480,7 @@ fn generate() void {
     ff.setSeed(0xB00 + level);
 
     const margin: i32 = 48;
-    const inner = ff.Rect.new(
+    const inner: ff.Rect = .new(
         margin,
         margin,
         SPACE.size.width - margin * 2,
@@ -568,7 +568,7 @@ fn generateWalls() void {
             if (!v_wall[c][r]) continue;
             if (Random.mod(u32, 100) < BRAID_PERCENT) continue;
 
-            addWall(ff.Rect.new(
+            addWall(.new(
                 @as(i32, @intCast(c + 1)) * CELL - WALL_THICKNESS / 2,
                 @as(i32, @intCast(r)) * CELL,
                 WALL_THICKNESS,
@@ -582,7 +582,7 @@ fn generateWalls() void {
             if (!h_wall[c][r]) continue;
             if (Random.mod(u32, 100) < BRAID_PERCENT) continue;
 
-            addWall(ff.Rect.new(
+            addWall(.new(
                 @as(i32, @intCast(c)) * CELL,
                 @as(i32, @intCast(r + 1)) * CELL - WALL_THICKNESS / 2,
                 CELL,
@@ -1160,7 +1160,7 @@ comptime {
 
     // Wall helpers are pure, so check them at compile time.
     {
-        const r = ff.Rect.new(100, 100, 20, 20);
+        const r: ff.Rect = .new(100, 100, 20, 20);
 
         if (pointRectDistSq(.new(110, 110), r) != 0.0) {
             @compileError("a point inside a wall should have squared distance 0");
