@@ -75,6 +75,10 @@ var ghost_count: usize = 0;
 var ghosts: [NUM_GHOSTS_MAX]Ghost = @splat(.{});
 var graves: [NUM_GHOSTS_MAX]Grave = @splat(.{});
 
+const MAX_WALLS = 8;
+var wall_count: usize = 0;
+var walls: [MAX_WALLS]ff.Rect = @splat(.{});
+
 var stars: [NUM_STARS]Star = @splat(.{});
 
 var sound: Sound = undefined;
@@ -82,27 +86,27 @@ var last_time: u64 = 0;
 
 const GHOST_COLORS = [NUM_GHOSTS_MAX]ff.Color{
     .white,
-    .cyan,
-    .light_blue,
-    .light_green,
-    .light_gray,
-    .green,
-    .blue,
     .red,
+    .cyan,
+    .light_green,
+    .blue,
+    .purple,
+    .green,
+    .light_blue,
 };
 
 const NIGHT: ff.Palette = .{
     .black = 0x131313,
     .dark_gray = 0x505050,
     .gray = 0x8D8D8D,
-    .cyan = 0xA8A8A8,
+    .cyan = 0x53C7D6,
     .light_gray = 0xCECECE,
     .white = 0xF2F0E5,
-    .light_blue = 0xA8A8A8,
+    .light_blue = 0x6FA8FF,
     .orange = 0xF7A41D,
     .dark_green = 0xC77C03,
-    .red = 0xB4202A,
-    .purple = 0x73172D,
+    .red = 0xD04A4A,
+    .purple = 0x8A4FB0,
     .yellow = 0xFFCD75,
     .light_green = 0xA7F070,
     .green = 0x38B764,
@@ -114,14 +118,14 @@ const DAWN: ff.Palette = .{
     .black = 0x6E3B4E,
     .dark_gray = 0x7A4A5A,
     .gray = 0xA86A5A,
-    .cyan = 0xD08A6A,
+    .cyan = 0x9FD0C8,
     .light_gray = 0xE0B090,
     .white = 0xFFF0D0,
-    .light_blue = 0xE8A06A,
+    .light_blue = 0xAFC4E8,
     .orange = 0xFFB347,
     .dark_green = 0xD97B4A,
-    .red = 0xC0504A,
-    .purple = 0x8C4A5A,
+    .red = 0xD07068,
+    .purple = 0xB08AC0,
     .yellow = 0xFFE08A,
     .light_green = 0xC8D890,
     .green = 0x8AA070,
@@ -436,6 +440,100 @@ fn generate() void {
         ghosts[i] = .{ .color = GHOST_COLORS[i] };
         ghosts[i].spawn(p);
     }
+
+    generateWalls();
+}
+
+fn generateWalls() void {
+    wall_count = 0;
+
+    var tries: u16 = 0;
+    while (wall_count < wallCount(level) and tries < 400) : (tries += 1) {
+        const r = randomWall();
+
+        if (!wallSpotOk(r)) continue;
+
+        walls[wall_count] = r;
+        wall_count += 1;
+    }
+}
+
+fn randomWall() ff.Rect {
+    const horizontal = Random.mod(u32, 2) == 0;
+    const length: i32 = 48 + @as(i32, @intCast(Random.mod(u32, 72)));
+    const thickness: i32 = 10;
+
+    const w = if (horizontal) length else thickness;
+    const h = if (horizontal) thickness else length;
+
+    const margin: i32 = 24;
+    const x = margin + @as(i32, @intCast(Random.mod(
+        u32,
+        @intCast(SPACE.size.width - margin * 2 - w),
+    )));
+    const y = margin + @as(i32, @intCast(Random.mod(
+        u32,
+        @intCast(SPACE.size.height - margin * 2 - h),
+    )));
+
+    return ff.Rect.new(x, y, w, h);
+}
+
+fn wallSpotOk(r: ff.Rect) bool {
+    // Keep the start point and every grave clear, with room to walk around.
+    if (pointRectDist(player.pos, r) < 64.0) return false;
+
+    for (graves[0..ghost_count]) |g| {
+        if (pointRectDist(g.pos, r) < 32.0) return false;
+    }
+
+    for (walls[0..wall_count]) |other| {
+        if (rectsOverlap(r, other, 20)) return false;
+    }
+
+    return true;
+}
+
+fn pointRectDist(p: ff.Point, r: ff.Rect) f32 {
+    const min = r.min();
+    const max = r.max();
+
+    const px: f32 = @floatFromInt(p.x);
+    const py: f32 = @floatFromInt(p.y);
+    const cx = @max(
+        @as(f32, @floatFromInt(min.x)),
+        @min(px, @as(f32, @floatFromInt(max.x))),
+    );
+    const cy = @max(
+        @as(f32, @floatFromInt(min.y)),
+        @min(py, @as(f32, @floatFromInt(max.y))),
+    );
+
+    const dx = px - cx;
+    const dy = py - cy;
+
+    return @sqrt(dx * dx + dy * dy);
+}
+
+fn rectsOverlap(a: ff.Rect, b: ff.Rect, gap: i32) bool {
+    const a_min = a.min();
+    const a_max = a.max();
+    const b_min = b.min();
+    const b_max = b.max();
+
+    return !(a_max.x + gap < b_min.x or
+        b_max.x + gap < a_min.x or
+        a_max.y + gap < b_min.y or
+        b_max.y + gap < a_min.y);
+}
+
+/// True when a circle at `p` overlaps any wall. Ghosts ignore this.
+pub fn hitsWall(p: ff.Point, radius: f32) bool {
+    for (walls[0..wall_count]) |w| {
+        if (pointRectDist(p, w) < radius) return true;
+    }
+
+    return false;
 }
 
 fn graveSpotOk(p: ff.Point, i: usize, center: ff.Point) bool {
@@ -512,6 +610,7 @@ fn filledGraves() usize {
 
 fn renderWorld(show_player: bool) void {
     renderStars();
+    renderWalls();
 
     for (graves[0..ghost_count], ghosts[0..ghost_count]) |*grave, *ghost| {
         grave.render(ghost.color);
@@ -526,6 +625,44 @@ fn renderWorld(show_player: bool) void {
     if (cheats.followLines) {
         for (ghosts[0..ghost_count]) |*ghost| {
             ghost.line();
+        }
+    }
+}
+
+fn renderWalls() void {
+    for (walls[0..wall_count]) |w| {
+        if (!cam.intersects(w)) continue;
+
+        const p = cam.screen(w.point);
+        const horizontal = w.size.width >= w.size.height;
+        const long = if (horizontal) w.size.width else w.size.height;
+
+        draw.rect(p.x, p.y, w.size.width, w.size.height, .{
+            .fill_color = .dark_gray,
+            .stroke_color = .gray,
+            .stroke_width = 1,
+        });
+
+        // Brick seams, one every 14 px along the long axis.
+        var offset: i32 = 14;
+        while (offset < long) : (offset += 14) {
+            if (horizontal) {
+                draw.line(
+                    p.x + offset,
+                    p.y + 1,
+                    p.x + offset,
+                    p.y + w.size.height - 1,
+                    .{ .color = .gray },
+                );
+            } else {
+                draw.line(
+                    p.x + 1,
+                    p.y + offset,
+                    p.x + w.size.width - 1,
+                    p.y + offset,
+                    .{ .color = .gray },
+                );
+            }
         }
     }
 }
@@ -627,6 +764,10 @@ fn lerpHex(a: u32, b: u32, t: f32) u32 {
 
 fn ghostCount(l: u32) usize {
     return @intCast(@min(3 + l, 8));
+}
+
+fn wallCount(l: u32) usize {
+    return @intCast(@min(4 + l / 2, @as(u32, MAX_WALLS)));
 }
 
 fn levelMs(l: u32) u64 {
@@ -760,5 +901,25 @@ comptime {
     if (levelMs(99) != 45_000) @compileError("level time should bottom out at 45 s");
     if (ghostCount(1) != 4) @compileError("level 1 should have 4 ghosts");
     if (ghostCount(99) != 8) @compileError("ghost count should cap at 8");
+    if (wallCount(1) != 4) @compileError("level 1 should have 4 walls");
+    if (wallCount(99) != MAX_WALLS) @compileError("wall count should cap");
+
+    // Wall helpers are pure, so check them at compile time.
+    {
+        const r = ff.Rect.new(100, 100, 20, 20);
+
+        if (@abs(pointRectDist(.new(110, 110), r)) > 0.001) {
+            @compileError("a point inside a wall should be at distance 0");
+        }
+        if (@abs(pointRectDist(.new(90, 110), r) - 10.0) > 0.001) {
+            @compileError("a point left of a wall should be 10 px away");
+        }
+        if (!rectsOverlap(r, ff.Rect.new(130, 100, 20, 20), 10)) {
+            @compileError("walls 10 px apart should overlap with a 10 px gap");
+        }
+        if (rectsOverlap(r, ff.Rect.new(140, 100, 20, 20), 10)) {
+            @compileError("walls 20 px apart should not overlap with a 10 px gap");
+        }
+    }
     if (@sizeOf(@TypeOf(stash_buf)) != 16) @compileError("stash layout changed");
 }

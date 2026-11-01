@@ -30,13 +30,27 @@ pub fn update(p: *Player) void {
 
     p.r = Boo.pad.radius();
 
-    const target = p.vec + p.vel;
-    const targetPoint = ff.Point.from_vec(target);
+    // Move one axis at a time so the shepherd slides along walls.
+    p.step(0);
+    p.step(1);
+}
 
-    if (Boo.SPACE.contains(targetPoint)) {
-        p.vec = target;
-        p.pos = targetPoint;
-    } else p.bounce();
+fn step(p: *Player, comptime axis: usize) void {
+    if (p.vel[axis] == 0) return;
+
+    var next = p.vec;
+    next[axis] += p.vel[axis];
+
+    const point = ff.Point.from_vec(next);
+    const radius = @as(f32, @floatFromInt(p.d)) / 2.0;
+
+    if (!Boo.SPACE.contains(point) or Boo.hitsWall(point, radius)) {
+        p.vel[axis] = 0;
+        return;
+    }
+
+    p.vec = next;
+    p.pos = point;
 }
 
 pub const PadDir = struct {
@@ -68,19 +82,6 @@ pub inline fn padDir(pad: ff.Pad) PadDir {
         .dir = dir,
         .strength = strength,
     };
-}
-
-inline fn bounce(p: *Player) void {
-    if (!Boo.SPACE.contains(
-        ff.Point.from_vec(.{ p.vec[0] + p.vel[0], p.vec[1] }),
-    )) p.vel[0] = -p.vel[0];
-
-    if (!Boo.SPACE.contains(
-        ff.Point.from_vec(.{ p.vec[0], p.vec[1] + p.vel[1] }),
-    )) p.vel[1] = -p.vel[1];
-
-    p.vec += p.vel;
-    p.pos = ff.Point.from_vec(p.vec);
 }
 
 const eye_white_style: ff.Style = .{

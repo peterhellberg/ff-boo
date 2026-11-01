@@ -188,7 +188,7 @@ pub fn render(self: *const Ghost) void {
 
     Circle.drawCentered(sp, RADIUS * 2, .{
         .fill_color = self.color,
-        .stroke_color = if (following) .yellow else .dark_blue,
+        .stroke_color = if (following) .white else .dark_blue,
         .stroke_width = if (following) 2 else 1,
     });
 
