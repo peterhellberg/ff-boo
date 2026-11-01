@@ -103,7 +103,7 @@ var last_time: u64 = 0;
 const GHOST_COLORS = [NUM_GHOSTS_MAX]ff.Color{
     .white,
     .red,
-    .cyan,
+    .yellow,
     .light_green,
     .blue,
     .purple,
