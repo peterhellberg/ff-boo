@@ -47,7 +47,7 @@ second game mode. Nothing from the old predator/prey rules is kept.
 - `Camera.center(player.pos)` then `Camera.clamp(SPACE)` runs every update.
 - Every world object is drawn through `cam.screen(pos)` and culled with
   `cam.sees(point)` or `cam.intersects(rect)`.
-- The HUD and the sun are drawn in screen space, after the world.
+- The HUD, sun and ground are drawn in screen space, after the world.
 - Y grows downwards, matching the SDK. `Player.padDir` already flips the pad Y.
 
 ## 4. State machine
@@ -348,11 +348,18 @@ applies night on entry.
 - Stars fade by skipping a growing fraction as dawn progresses:
   `if (@mod(i + dawn_step, 6) < dawn_step) continue;`. No alpha blending is
   needed.
-- The sun is drawn in screen space once `dawn_step >= 2`:
-  `x = 178`, `y = 150 - progress * 90`, diameter 36, fill `.orange`, stroke
-  `.yellow`, width 1.
-- A horizon line at `y = 150` in `.dark_green` sells the sunrise. It is drawn
-  under the sun and over the world.
+- The sun is drawn in screen space once `dawn_step >= 2`, at
+  `x = 178`, `y = 162 - progress * 84`, diameter 36, fill `.orange`, stroke
+  `.yellow`, width 1, with a 16 px `.yellow` core.
+- 12 rays of alternating length (18 + progress * 18 and 8 + progress * 8)
+  start 20 px from the centre and turn with `frame * 0.004` rad. Alternating
+  lengths make the rotation visible: evenly spaced identical rays would look
+  static. Rays are drawn before the disc, so the disc caps their inner ends.
+- The ground is drawn every frame, after the sun, so the sun rises from behind
+  it. Three `.purple` ellipses make rolling hills whose tops reach `y = 132`
+  to `138`; a `.dark_blue` strip fills from `HORIZON_Y = 150` down, and a
+  `.dark_green` line marks the horizon. The strip hides the hill bases and the
+  lower edge of the sun.
 
 ## 9. Rendering order
 
@@ -364,10 +371,25 @@ graves (culled)
 ghosts (culled, buried skipped)
 shepherd (hidden on the Over screen)
 debug follow lines (cheat)
-horizon + sun (screen space, Game/Clear/Over)
+sun rays + disc (screen space, dawn_step >= 2)
+hills + horizon + ground strip (screen space, every frame)
 HUD (screen space, Game/Clear)
-state overlay text (Clear/Over/Menu)
+state overlay panels + text (Clear/Over)
 ```
+
+The menu draws only the stars and its own text: no ground, no HUD.
+
+Overlay panels:
+
+- `panel(x, y, w, h)` draws an opaque `.black` rounded rect with a 6 px corner
+  radius and a 1 px `.gray` outline. Because the fill is opaque, the maze
+  cannot show through the text.
+- `textCentered(t, cx, y, color)` shifts by `len * 3`, since the font is 6 px
+  wide, so the caller only supplies the centre column.
+- `Clear` uses one panel at `(60, 56, 120, 46)` for `NIGHT CLEARED` and the
+  bonus.
+- `Over` uses one panel at `(42, 40, 156, 118)` for all dawn text and hints.
+  `SOULS` and `FAST` share a single centred line so they stay inside it.
 
 HUD:
 
@@ -500,7 +522,7 @@ and no sound on the menu.
    - palette lerp and `applyPalette`
    - `Init`, `Game` (update order, separation, burial, dawn)
    - `Clear`, `Over`, `Menu`
-   - HUD, sun, stars fade, walls
+   - HUD, sun rays, hills and ground, stars fade, walls, overlay panels
    - stash load/save, board/badge calls, `before_exit`
    - audio setup with `Sound.init`, `tickSound`, and the four event sounds
 5. Delete the old predator/prey code paths (`Died`, `enemyCollisions` size

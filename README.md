@@ -17,7 +17,8 @@ built on the [ff](https://github.com/peterhellberg/ff) SDK 🎮
 - Ghosts within range will **follow you** — lead them gently, don't lose them.
 - Guide each ghost to its **grave** before the countdown hits zero.
 - The palette slowly brightens as dawn approaches
-    (`Color.set` / `Palette.set` shift the palette per dawn level) — watch the sky!
+    (`Color.set` / `Palette.set` shift the palette per dawn level) — the sun
+    climbs over the hills as the timer runs out.
 
 ## Development
 
