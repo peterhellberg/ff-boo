@@ -277,7 +277,7 @@ const Menu = struct {
                 "GET CLOSE TO MAKE GHOSTS FOLLOW",
                 "LEAD THEM TO THEIR MATCHING GRAVE",
             },
-            &.{ ff.Color.blue, ff.Color.cyan, ff.Color.light_blue },
+            &.{ .blue, .cyan, .light_blue },
             120,
             84,
             44,
@@ -288,7 +288,7 @@ const Menu = struct {
         if (self.blink) {
             textBlockCentered(
                 &.{"PRESS (E) TO START GAME!"},
-                &.{ff.Color.white},
+                &.{.white},
                 120,
                 122,
                 38,
