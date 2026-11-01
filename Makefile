@@ -44,5 +44,6 @@ deploy: export
 		ssh ${HOSTNAME} 'mkdir -p ${SERVER_PATH}/shots'; \
 		ff shots download ${AUTHOR_ID}.${APP_ID};   			\
 		scp -q -r *.png ${HOSTNAME}:${SERVER_PATH}/shots/; \
+		rm *.png; \
 		echo "✔ Screens ${APP_URL}/shots/?layout=grid"; \
 	fi
