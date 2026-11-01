@@ -10,6 +10,9 @@ My entry for the [Firefly Zero Jam #3](https://itch.io/jam/firefly-jam-3) 🎃
 Using [Zig](https://ziglang.org/) to compile a ROM for use in [Firefly Zero](https://fireflyzero.com/),
 built on the [ff](https://github.com/peterhellberg/ff) SDK 🎮
 
+![peter.boo.002-8x](https://play.c7.se/ff/boo/shots/peter.boo.002-8x.png)
+![peter.boo.004-8x](https://play.c7.se/ff/boo/shots/peter.boo.004-8x.png)
+
 ## How to play
 
 - **Move** around the graveyard (DPad or touchpad — `readPad`/`readButtons`) to approach wandering ghosts.
@@ -48,3 +51,4 @@ zig build test
     (`setSeed` for reproducible layouts) — no level editor needed.
 - **Persistence:** best times and progress stored with `saveStash`/`loadStash`,
     plus `addScore` (boards) and `addProgress` (badges) where appropriate.
+
