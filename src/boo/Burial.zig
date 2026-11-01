@@ -11,6 +11,8 @@
 const std = @import("std");
 const ff = @import("ff");
 
+const Burial = @This();
+
 const Boo = @import("../main.zig");
 
 // ---------------------------------------------------------------------------
