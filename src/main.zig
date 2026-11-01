@@ -373,7 +373,6 @@ const Clear = struct {
 
     fn render(_: *Clear) void {
         renderWorld(true);
-        renderSunAndHills();
         renderHud();
 
         panel(60, 56, 120, 46);
