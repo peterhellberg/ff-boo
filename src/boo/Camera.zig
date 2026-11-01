@@ -36,5 +36,8 @@ pub fn intersects(self: *const Camera, r: ff.Rect) bool {
     const rect_right = r.point.x + r.size.width;
     const rect_bottom = r.point.y + r.size.height;
 
-    return self.rect.point.x <= rect_right and camera_right >= r.point.x and self.rect.point.y <= rect_bottom and camera_bottom >= r.point.y;
+    return self.rect.point.x <= rect_right and
+        camera_right >= r.point.x and
+        self.rect.point.y <= rect_bottom and
+        camera_bottom >= r.point.y;
 }

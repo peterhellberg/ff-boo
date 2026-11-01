@@ -12,8 +12,11 @@ var stash_buf: [16]u8 = @splat(0);
 pub fn load() void {
     const s = ff.loadStash(ff.getMe(), &stash_buf) orelse return;
 
-    if (s.len < 12) return;
-    if (s[0] != 'B' or s[1] != 'O' or s[2] != 'O' or s[3] != '1') return;
+    if (s.len < 12 or
+        s[0] != 'B' or
+        s[1] != 'O' or
+        s[2] != 'O' or
+        s[3] != '1') return;
 
     level = @max(1, readU16(s[4..6]));
     score = @intCast(readU16(s[6..8]));

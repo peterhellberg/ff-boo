@@ -43,6 +43,7 @@ fn spawnPos(grave: ff.Point) ff.Point {
         const angle = ff.Angle.fromDegrees(
             @floatFromInt(Random.mod(u32, 360)),
         ).radians;
+
         const dist: f32 = @floatFromInt(130 + Random.mod(u32, 90));
 
         const raw = Boo.player.pos.add(.new(
@@ -103,8 +104,6 @@ fn follow(self: *Ghost) void {
     }
 
     if (dist > 1.0) {
-        // Aim for a point TRAIL_DISTANCE from the shepherd, on the line
-        // between the shepherd and the ghost.
         const target = Boo.player.pos.sub(d.scale(TRAIL_DISTANCE / dist));
         const to = target.sub(self.pos);
         const to_len = to.len();
@@ -180,7 +179,8 @@ fn rect(self: *const Ghost) ff.Rect {
 }
 
 pub fn render(self: *const Ghost) void {
-    if (self.state == .buried or !Boo.cam.intersects(self.rect())) return;
+    if (self.state == .buried or
+        !Boo.cam.intersects(self.rect())) return;
 
     const sp = Boo.cam.screen(self.pos);
     const following = self.state == .follow;
@@ -191,7 +191,9 @@ pub fn render(self: *const Ghost) void {
     const hem_y = sp.y + RADIUS - 3;
 
     inline for ([_]i32{ -4, 0, 4 }) |ox| {
-        ff.drawCircle(.new(sp.x + ox - 7, hem_y - 7), 14, .{ .fill_color = outline });
+        ff.drawCircle(.new(sp.x + ox - 7, hem_y - 7), 14, .{
+            .fill_color = outline,
+        });
     }
 
     Circle.drawCentered(.new(sp.x, sp.y - 2), RADIUS * 2, .{
@@ -201,7 +203,9 @@ pub fn render(self: *const Ghost) void {
     });
 
     inline for ([_]i32{ -4, 0, 4 }) |ox| {
-        ff.drawCircle(.new(sp.x + ox - 5, hem_y - 5), 10, .{ .fill_color = self.color });
+        ff.drawCircle(.new(sp.x + ox - 5, hem_y - 5), 10, .{
+            .fill_color = self.color,
+        });
     }
 
     const bottom_y = sp.y + RADIUS - 2;
@@ -225,8 +229,16 @@ pub fn render(self: *const Ghost) void {
         const ex_c = sp.x + ex;
         const ey_c = sp.y - 4;
 
-        ff.drawCircle(.new(ex_c - 4, ey_c - 4), 8, .{ .fill_color = .light_gray });
-        ff.drawCircle(.new(ex_c - 3, ey_c - 3), 6, .{ .fill_color = .white });
-        ff.drawCircle(.new(ex_c + dx - 1, ey_c + dy - 1), 2, .{ .fill_color = .black });
+        ff.drawCircle(.new(ex_c - 4, ey_c - 4), 8, .{
+            .fill_color = .light_gray,
+        });
+
+        ff.drawCircle(.new(ex_c - 3, ey_c - 3), 6, .{
+            .fill_color = .white,
+        });
+
+        ff.drawCircle(.new(ex_c + dx - 1, ey_c + dy - 1), 2, .{
+            .fill_color = .black,
+        });
     }
 }

@@ -74,6 +74,7 @@ pub inline fn padDir(pad: ff.Pad) PadDir {
     if (lenSq == 0) return .{ .dir = .{ 0, 0 }, .strength = 0.0 };
 
     const len = @sqrt(lenSq);
+
     dir *= @as(ff.Vec, @splat(1.0 / len));
 
     const strength = @min(len / 1000.0, 1.0);

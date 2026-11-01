@@ -43,17 +43,16 @@ pub const DAWN: ff.Palette = .{
 };
 
 pub fn apply(step: u32) void {
-    // Smoothstep on t: at 6 steps the raw linear ramp makes steps 0-1
-    // and 4-5 look nearly identical (the eye discriminates best at
-    // mid-lightness). Ease so both ends get visible motion.
     const t_raw = @as(f32, @floatFromInt(step)) / 5.0;
     const t = t_raw * t_raw * (3.0 - 2.0 * t_raw);
     const t_q: u8 = @intFromFloat(t * 255.0 + 0.5);
 
     var p: ff.Palette = NIGHT;
+
     inline for (@typeInfo(ff.Palette).@"struct".field_names) |name| {
         @field(p, name) = lerpHex(@field(NIGHT, name), @field(DAWN, name), t_q);
     }
+
     p.set();
 
     dawn_step = step;
@@ -61,13 +60,16 @@ pub fn apply(step: u32) void {
 
 fn lerpHex(a: u32, b: u32, t_q: u8) u32 { // t_q = 0..255
     var result: u32 = 0;
+
     inline for (0..3) |i| {
         const shift: u5 = @intCast(8 * (2 - i));
         const ca: u32 = (a >> shift) & 0xFF;
         const cb: u32 = (b >> shift) & 0xFF;
         const mixed = (ca * (255 - t_q) + cb * t_q + 127) / 255;
+
         result |= mixed << shift;
     }
+
     return result;
 }
 
