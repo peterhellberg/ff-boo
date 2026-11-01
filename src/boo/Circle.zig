@@ -21,14 +21,11 @@ pub fn intersect(c1: Circle, c2: Circle) bool {
 }
 
 pub fn contains(self: Circle, other: Circle) bool {
-    const dx: f32 = @floatFromInt(other.pos.x - self.pos.x);
-    const dy: f32 = @floatFromInt(other.pos.y - self.pos.y);
-    const dist: f32 = @sqrt(dx * dx + dy * dy);
+    const dx = other.pos.x - self.pos.x;
+    const dy = other.pos.y - self.pos.y;
+    const rs: i32 = @divTrunc(self.d, 2) - @divTrunc(other.d, 2);
 
-    const radiusSelf: f32 = @floatFromInt(@divTrunc(self.d, 2));
-    const radiusOther: f32 = @floatFromInt(@divTrunc(other.d, 2));
-
-    return dist + radiusOther <= radiusSelf;
+    return dx * dx + dy * dy <= rs * rs;
 }
 
 pub fn drawCentered(p: ff.Point, d: i32, s: ff.Style) void {
