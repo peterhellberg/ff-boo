@@ -5,3 +5,9 @@ author_name = "Peter Hellberg"
 
 [files]
 font = { path = "eg_6x12.fff" }
+
+[boards]
+1 = { name = "best run", min = 0 }
+
+[badges]
+1 = { name = "Shepherd", descr = "Put 50 ghosts to rest", steps = 50 }
