@@ -10,7 +10,6 @@ pos: ff.Point = rectCenter(Boo.SPACE),
 vec: ff.Vec = rectCenter(Boo.SPACE).vec(),
 vel: ff.Vec = .{ 0.01, 0.01 },
 
-d: i32 = Boo.SIZE_PLAYER,
 r: f32 = 0.0,
 
 pub fn update(p: *Player) void {
@@ -36,20 +35,24 @@ pub fn update(p: *Player) void {
 }
 
 fn step(p: *Player, comptime axis: usize) void {
-    if (p.vel[axis] == 0) return;
+    const vel = p.vel[axis];
+
+    if (vel == 0) return;
 
     var next = p.vec;
-    next[axis] += p.vel[axis];
 
-    const point: ff.Point = .from_vec(next);
-    const radius = @as(f32, @floatFromInt(p.d)) / 2.0;
+    next[axis] += vel;
 
-    if (!Boo.SPACE.contains(point) or Boo.hitsWall(point, radius)) {
+    const point = ff.Point.from_vec(next);
+
+    if (!Boo.SPACE.contains(point) or
+        Boo.hitsWall(point, 10))
+    {
         p.vel[axis] = 0;
         return;
     }
 
-    p.vec = next;
+    p.vec[axis] = next[axis];
     p.pos = point;
 }
 
@@ -100,18 +103,12 @@ pub fn render(p: *Player) void {
     const pt = ff.Point.from_vec(p.vel);
 
     Circle.new(
-        sp.add(pt.mul(
-            .new(-@divTrunc(p.d, 2), -@divTrunc(p.d, 2)),
-        )),
+        sp.add(pt.mul(.new(-10, -10))),
         @intFromFloat(p.r * 0.004),
-    ).draw(.{
-        .fill_color = .yellow,
-    });
+    ).draw(.{ .fill_color = .yellow });
 
     Circle.new(
-        sp.add(pt.mul(
-            .new(-@divTrunc(p.d, 4), -@divTrunc(p.d, 4)),
-        )),
+        sp.add(pt.mul(.new(-5, -5))),
         @intFromFloat(p.r * 0.01),
     ).draw(.{
         .fill_color = .white,
@@ -119,52 +116,27 @@ pub fn render(p: *Player) void {
         .stroke_width = 1,
     });
 
-    Circle.new(sp, p.d).draw(.{
+    Circle.new(sp, 20).draw(.{
         .fill_color = .yellow,
         .stroke_color = .orange,
         .stroke_width = 1,
     });
 
-    // Draw eyes only if moving
-    const vel_len = @sqrt(p.vel[0] * p.vel[0] + p.vel[1] * p.vel[1]);
+    const vel_len = @sqrt(@reduce(.Add, p.vel * p.vel));
 
-    if (vel_len != 0) {
-        const dir: ff.Vec = p.vel * @as(ff.Vec, @splat(1.0 / vel_len));
-        const perp: ff.Vec = .{ -dir[1], dir[0] };
-        const half: ff.Vec = .{ 0.5, 0.5 };
+    if (vel_len < 0.001) return;
 
-        const eye_offset_forward = @as(f32, @floatFromInt(p.d)) * 0.25;
-        const eye_offset_side = @as(f32, @floatFromInt(p.d)) * 0.2;
-        const forward = dir * @as(ff.Vec, @splat(eye_offset_forward));
-        const side = perp * @as(ff.Vec, @splat(eye_offset_side));
-        const eye_size: i32 = @intFromFloat(@as(f32, @floatFromInt(p.d)) * 0.45);
-        const pup_size = @divTrunc(eye_size, 2);
+    const dir = p.vel / @as(ff.Vec, @splat(vel_len));
+    const side_dir: ff.Vec = .{ -dir[1], dir[0] };
+    const forward = dir * @as(ff.Vec, @splat(5.0));
+    const side = side_dir * @as(ff.Vec, @splat(4.0));
+    const pupil = dir * @as(ff.Vec, @splat(2.0));
 
-        { // Right eye
-            const right_eye_pos = sp.add(
-                .from_vec(forward + side),
-            );
+    inline for (.{ side, -side }) |offset| {
+        const eye_pos = sp.add(.from_vec(forward + offset));
 
-            const right_pup_pos = right_eye_pos.add(
-                .from_vec((forward * half) + side * half),
-            );
-
-            Circle.new(right_eye_pos, eye_size).draw(eye_white_style);
-            Circle.new(right_pup_pos, pup_size).draw(eye_pupil_style);
-        }
-
-        { // Left eye
-            const left_eye_pos = sp.add(
-                .from_vec(forward - side),
-            );
-
-            const left_pup_pos = left_eye_pos.add(
-                .from_vec((forward * half) - side * half),
-            );
-
-            Circle.new(left_eye_pos, eye_size).draw(eye_white_style);
-            Circle.new(left_pup_pos, pup_size).draw(eye_pupil_style);
-        }
+        Circle.new(eye_pos, 9).draw(eye_white_style);
+        Circle.new(eye_pos.add(.from_vec(pupil)), 4).draw(eye_pupil_style);
     }
 }
 
