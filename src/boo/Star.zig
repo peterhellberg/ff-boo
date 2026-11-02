@@ -10,7 +10,5 @@ pos: ff.Point = .{},
 c: ff.Color = .white,
 
 pub fn render(star: *const Star) void {
-    if (Boo.cam.sees(star.pos)) {
-        ff.draw.Point(Boo.cam.screen(star.pos), star.c);
-    }
+    ff.draw.Point(Boo.cam.screen(star.pos), star.c);
 }
