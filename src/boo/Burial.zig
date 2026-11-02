@@ -19,7 +19,7 @@ const Boo = @import("../main.zig");
 // Configuration
 // ---------------------------------------------------------------------------
 
-const BURIAL_PARTICLES = 14;
+const BURIAL_PARTICLES = 8;
 const FLASH_DURATION: f32 = 0.4;
 const POPUP_LIFETIME: f32 = 1.0;
 const POPUP_RISE_SPEED: f32 = 30;
@@ -38,7 +38,7 @@ const Particle = struct {
     color: ff.Color,
 };
 
-const MAX_PARTICLES = 256;
+const MAX_PARTICLES = 16;
 
 var particles: [MAX_PARTICLES]Particle = undefined;
 var particle_count: usize = 0;
