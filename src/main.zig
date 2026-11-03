@@ -898,7 +898,7 @@ fn renderWalls() void {
         draw.line(p.x, p.y + w.size.height - 1, p.x + w.size.width - 1, p.y + w.size.height - 1, .{ .color = .black });
         draw.line(p.x + w.size.width - 1, p.y, p.x + w.size.width - 1, p.y + w.size.height - 1, .{ .color = .black });
 
-        if (false) { // Brick patterns
+        { // Brick patterns
             const bx = p.x + 1;
             const by = p.y + 1;
             const bw = w.size.width - 2;
