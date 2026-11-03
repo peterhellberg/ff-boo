@@ -26,7 +26,11 @@ pub fn screen(self: *const Camera, point: ff.Point) ff.Point {
 }
 
 pub fn sees(self: *const Camera, point: ff.Point) bool {
-    return self.rect.contains(point);
+    const tl = self.rect.point;
+
+    return point.x >= tl.x and point.y >= tl.y and
+        point.x < tl.x + self.rect.size.width and
+        point.y < tl.y + self.rect.size.height;
 }
 
 pub fn intersects(self: *const Camera, r: ff.Rect) bool {
