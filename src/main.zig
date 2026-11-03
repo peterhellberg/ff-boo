@@ -24,8 +24,7 @@ const BADGE_SHEPHERD: ff.Badge = 3;
 
 pub const DT: f32 = 1.0 / 60.0;
 pub const SIZE_SPACE = 3;
-pub const SIZE_PLAYER = 20;
-pub const NUM_STARS = 64;
+pub const NUM_STARS = 32;
 pub const NUM_GHOSTS_MAX = 8;
 
 pub const SPACE: ff.Rect = .new(
@@ -440,6 +439,8 @@ fn startRun() void {
 fn enterClear() void {
     const secs: i32 = @intCast((remainingMs() + 999) / 1000);
 
+    clearSound();
+
     clear_bonus = secs * 5;
     run_score += clear_bonus;
 
@@ -453,7 +454,6 @@ fn enterClear() void {
     Best.score = @max(Best.score, run_score);
     Best.save();
 
-    clearSound();
     clear_frames = CLEAR_FRAMES;
     state = .Clear;
 }
@@ -674,14 +674,15 @@ fn separateGhosts() void {
             if (b.state == .buried) continue;
 
             const delta = b.vec - a.vec;
-            const dist_sq = delta[0] * delta[0] + delta[1] * delta[1];
+            const dx = delta[0];
+            const dy = delta[1];
+            const dist_sq = dx * dx + dy * dy;
 
             if (dist_sq == 0 or dist_sq >= min_sq) continue;
 
-            const dist = @sqrt(dist_sq);
-            const push = (min - dist) * 0.5;
-            const direction = delta * @as(ff.Vec, @splat(1.0 / dist));
-            const correction = direction * @as(ff.Vec, @splat(push));
+            const inv_dist = 1.0 / @sqrt(dist_sq);
+            const push = (min - dist_sq * inv_dist) * 0.5;
+            const correction = delta * @as(ff.Vec, @splat(push * inv_dist));
 
             a.vec -= correction;
             b.vec += correction;
@@ -693,37 +694,38 @@ fn separateGhosts() void {
 }
 
 fn buryGhosts() void {
-    for (ghosts[0..ghost_count], 0..) |*ghost, i| {
-        if (ghost.state != .follow or graves[i].filled) continue;
+    const radius = Ghost.BURY_RADIUS;
+    const radius_sq = radius * radius;
 
-        const delta = ghost.pos.sub(graves[i].pos);
-        const dist_sq =
-            @as(f32, @floatFromInt(delta.x)) * @as(f32, @floatFromInt(delta.x)) +
-            @as(f32, @floatFromInt(delta.y)) * @as(f32, @floatFromInt(delta.y));
+    for (ghosts[0..ghost_count], graves[0..ghost_count]) |*ghost, *grave| {
+        if (ghost.state != .follow or grave.filled) continue;
 
-        const radius = Ghost.BURY_RADIUS;
+        const delta = ghost.pos.sub(grave.pos);
+        const dx: f32 = @floatFromInt(delta.x);
+        const dy: f32 = @floatFromInt(delta.y);
+        const dist_sq = dx * dx + dy * dy;
 
-        if (dist_sq < radius * radius) {
-            ghost.state = .buried;
+        if (dist_sq >= radius_sq) continue;
 
-            const ghostColor = ghost.color;
+        ghost.state = .buried;
 
-            graves[i].ghost_color = ghostColor;
-            graves[i].filled = true;
+        burialSound();
 
-            Burial.trigger(graves[i].pos, ghostColor);
+        const ghost_color = ghost.color;
+        grave.ghost_color = ghost_color;
+        grave.filled = true;
 
-            run_score += 100;
-            Best.total_buried += 1;
+        Burial.trigger(grave.pos, ghost_color);
 
-            const me = ff.getMe();
+        run_score += 100;
 
-            _ = ff.addProgress(me, BADGE_GRAVEDIGGER, 1);
-            _ = ff.addProgress(me, BADGE_GHOSTBUSTER, 1);
-            _ = ff.addProgress(me, BADGE_SHEPHERD, 1);
+        Best.total_buried += 1;
 
-            burialSound();
-        }
+        const me = ff.getMe();
+
+        _ = ff.addProgress(me, BADGE_GRAVEDIGGER, 1);
+        _ = ff.addProgress(me, BADGE_GHOSTBUSTER, 1);
+        _ = ff.addProgress(me, BADGE_SHEPHERD, 1);
     }
 }
 
@@ -880,13 +882,10 @@ fn renderWalls() void {
         if (!cam.intersects(w)) continue;
 
         const p = cam.screen(w.point);
-        const horizontal = w.size.width >= w.size.height;
 
         // Base fill + dark outer outline.
         draw.rect(p.x, p.y, w.size.width, w.size.height, .{
             .fill_color = .dark_gray,
-            .stroke_color = .black,
-            .stroke_width = 1,
         });
 
         // Bevel.
@@ -895,20 +894,22 @@ fn renderWalls() void {
         draw.line(p.x, p.y + w.size.height - 1, p.x + w.size.width - 1, p.y + w.size.height - 1, .{ .color = .black });
         draw.line(p.x + w.size.width - 1, p.y, p.x + w.size.width - 1, p.y + w.size.height - 1, .{ .color = .black });
 
-        const bx = p.x + 1;
-        const by = p.y + 1;
-        const bw = w.size.width - 2;
-        const bh = w.size.height - 2;
-        if (bw <= 0 or bh <= 0) continue;
+        if (false) { // Brick patterns
+            const bx = p.x + 1;
+            const by = p.y + 1;
+            const bw = w.size.width - 2;
+            const bh = w.size.height - 2;
+            if (bw <= 0 or bh <= 0) continue;
 
-        // World-space seed so the pattern is stable across frames AND
-        // continuous across adjacent wall segments.
-        const seed: u32 = @bitCast(w.point.x *% 31 +% w.point.y *% 733);
+            // World-space seed so the pattern is stable across frames AND
+            // continuous across adjacent wall segments.
+            const seed: u32 = @bitCast(w.point.x *% 31 +% w.point.y *% 733);
 
-        if (horizontal) {
-            drawBrickPattern(bx, by, bw, bh, seed, true);
-        } else {
-            drawBrickPattern(bx, by, bw, bh, seed, false);
+            if (w.size.width >= w.size.height) {
+                drawBrickPattern(bx, by, bw, bh, seed, true);
+            } else {
+                drawBrickPattern(bx, by, bw, bh, seed, false);
+            }
         }
     }
 }
@@ -1061,10 +1062,20 @@ pub fn followSound() void {
 }
 
 fn burialSound() void {
-    const now = sound.elapsed_ms;
-
-    sound.sineAt(now, .e4, .a2, 100, 0.15);
-    sound.sineAt(now + 100, .a2, .a2, 70, 0.08);
+    sound.melody(&.{
+        .{
+            .from = .e4,
+            .to = .a2,
+            .duration_ms = 100,
+            .amplitude = 0.15,
+        },
+        .{
+            .from = .a2,
+            .to = .a2,
+            .duration_ms = 70,
+            .amplitude = 0.08,
+        },
+    }, 0);
 }
 
 fn clearSound() void {
@@ -1096,7 +1107,7 @@ fn dawnSound() void {
         },
     }, 0);
 
-    sound.chord(&.{ .e3, .b3 }, 600, 0.08, 40);
+    sound.chordAfter(&.{ .e3, .b3 }, 600, 0.08, 40);
 }
 
 pub fn text(t: ff.String, p: ff.Point, c: ff.Color) void {
