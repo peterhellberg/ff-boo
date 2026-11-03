@@ -856,7 +856,7 @@ fn drawBrickPattern(px: i32, py: i32, w: i32, h: i32, seed: u32, comptime horizo
                 @as(u32, @bitCast(brow)),
             );
 
-            const n_specks = 2 + (hsh % 2);
+            const n_specks = 1 + (hsh % 2);
 
             var s: u32 = 0;
             while (s < n_specks) : (s += 1) {
