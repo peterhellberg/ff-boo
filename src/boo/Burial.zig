@@ -1,4 +1,4 @@
-//! Burial effects: particle puff, grave flash, floating score popup.
+//! Burial effects: particle puff, floating score popup.
 //! Owns no game state — main.zig decides when a burial happens and calls
 //! `trigger()`; this module just makes it look good.
 //!
@@ -20,7 +20,6 @@ const Boo = @import("../main.zig");
 // ---------------------------------------------------------------------------
 
 const BURIAL_PARTICLES = 8;
-const FLASH_DURATION: f32 = 0.4;
 const POPUP_LIFETIME: f32 = 1.0;
 const POPUP_RISE_SPEED: f32 = 30;
 
@@ -55,26 +54,10 @@ const Popup = struct {
     text_len: usize,
 };
 
-const MAX_POPUPS = 16;
+const MAX_POPUPS = 8;
 
 var popups: [MAX_POPUPS]Popup = undefined;
 var popup_count: usize = 0;
-
-// ---------------------------------------------------------------------------
-// Grave flashes
-// ---------------------------------------------------------------------------
-
-const Flash = struct {
-    x: f32,
-    y: f32,
-    timer: f32,
-    color: ff.Color,
-};
-
-const MAX_FLASHES = 16;
-
-var flashes: [MAX_FLASHES]Flash = undefined;
-var flash_count: usize = 0;
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -125,20 +108,6 @@ pub fn update(dt: f32) void {
 
         i += 1;
     }
-
-    // Flashes: count down, swap-remove.
-    i = 0;
-    while (i < flash_count) {
-        flashes[i].timer -= dt;
-
-        if (flashes[i].timer <= 0) {
-            flash_count -= 1;
-            flashes[i] = flashes[flash_count];
-            continue;
-        }
-
-        i += 1;
-    }
 }
 
 /// Call once per frame from the render step, after world geometry.
@@ -164,22 +133,6 @@ pub fn render(cam: anytype, draw: anytype) void {
         });
     }
 
-    // Flashes: ghost-colored expanding ring, drawn under popups.
-    for (flashes[0..flash_count]) |f| {
-        const t = f.timer / FLASH_DURATION; // 1.0 -> 0.0
-        const sp = cam.screen(.new(
-            @intFromFloat(@round(f.x)),
-            @intFromFloat(@round(f.y)),
-        ));
-
-        const glow: i32 = @as(i32, @intFromFloat(6 * t)) + 2;
-
-        draw.line(sp.x - glow, sp.y - glow, sp.x + glow, sp.y - glow, .{ .color = f.color });
-        draw.line(sp.x - glow, sp.y + glow, sp.x + glow, sp.y + glow, .{ .color = f.color });
-        draw.line(sp.x - glow, sp.y - glow, sp.x - glow, sp.y + glow, .{ .color = f.color });
-        draw.line(sp.x + glow, sp.y - glow, sp.x + glow, sp.y + glow, .{ .color = f.color });
-    }
-
     // Popups on top.
     for (popups[0..popup_count]) |p| {
         const sp = cam.screen(.new(
@@ -197,7 +150,6 @@ pub fn trigger(pos: ff.Point, ghost_color: ff.Color) void {
     const y = @as(f32, @floatFromInt(pos.y));
 
     spawnParticles(x, y, ghost_color);
-    spawnFlash(x, y, ghost_color);
     spawnPopup(x, y, 100);
 }
 
@@ -237,13 +189,6 @@ fn spawnParticles(x: f32, y: f32, color: ff.Color) void {
 
         spawnParticle(x + jitter_x, y + jitter_y, vx, vy, 0.5 + delay * 0.1, color);
     }
-}
-
-fn spawnFlash(x: f32, y: f32, color: ff.Color) void {
-    if (flash_count >= MAX_FLASHES) return;
-
-    flashes[flash_count] = .{ .x = x, .y = y, .timer = FLASH_DURATION, .color = color };
-    flash_count += 1;
 }
 
 fn spawnPopup(x: f32, y: f32, points: i32) void {
