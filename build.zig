@@ -8,8 +8,11 @@ pub fn build(b: *std.Build) !void {
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/main.zig"),
             .target = b.resolveTargetQuery(.{
-                .cpu_arch = .wasm32,
                 .os_tag = .freestanding,
+                .cpu_arch = .wasm32,
+                .cpu_features_add = std.Target.wasm.featureSet(&.{
+                    .simd128,
+                }),
             }),
             .optimize = .small,
         }),
