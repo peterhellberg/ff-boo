@@ -9,10 +9,9 @@ queue: [16]Sine = undefined,
 queue_len: usize = 0,
 
 index: usize = 0,
-
 elapsed_ms: u32 = 0,
+next_start_ms: u32 = 0,
 
-/// One note in the scheduling queue.
 pub const Note = struct {
     from: ff.audio.Freq,
     to: ff.audio.Freq,
@@ -21,21 +20,28 @@ pub const Note = struct {
     gap_ms: u32 = 0,
 };
 
+const Sine = struct {
+    start_ms: u32,
+    duration_ms: u32,
+    start_freq: ff.audio.Freq,
+    end_freq: ff.audio.Freq,
+    amplitude: f32,
+    started: bool = false,
+};
+
+const tail_ms: u32 = 16;
+
 pub fn init() Sound {
     var s: Sound = .{};
-    var i: usize = 0;
 
-    while (i < s.sines.len) : (i += 1) {
-        s.gains[i] = ff.audio.out.node.addGain(0.0);
-        s.sines[i] = s.gains[i].node.addSine(.hz(0.0), 0.0);
+    for (&s.sines, &s.gains) |*oscillator, *gain| {
+        gain.* = ff.audio.out.node.addGain(0.0);
+        oscillator.* = gain.node.addSine(.hz(0.0), 0.0);
     }
 
     return s;
 }
 
-/// Core scheduler: queue a note with an explicit absolute start time
-/// (ms since engine start). Used by `chord` for simultaneous starts;
-/// everything else goes through `sine`.
 pub fn sineAt(
     self: *Sound,
     start_ms: u32,
@@ -44,21 +50,18 @@ pub fn sineAt(
     duration_ms: u32,
     amplitude: f32,
 ) void {
-    if (self.queue_len >= self.queue.len) return;
+    if (self.queue_len == self.queue.len) return;
+
     self.queue[self.queue_len] = .{
         .start_ms = start_ms,
         .duration_ms = duration_ms,
         .start_freq = start,
         .end_freq = end,
         .amplitude = amplitude,
-        .started = false,
     };
     self.queue_len += 1;
 }
 
-/// Queue a single sliding sine tone, starting as soon as the previous
-/// queued note ends (plus `gap_ms`). If nothing is queued, it starts
-/// immediately.
 pub fn sine(
     self: *Sound,
     start: ff.audio.Freq,
@@ -67,29 +70,17 @@ pub fn sine(
     amplitude: f32,
     gap_ms: u32,
 ) void {
-    if (self.queue_len >= self.queue.len) return;
+    const start_ms = @max(self.elapsed_ms, self.next_start_ms);
 
-    var start_time = self.elapsed_ms;
+    self.sineAt(start_ms, start, end, duration_ms, amplitude);
 
-    if (self.queue_len > 0) {
-        const last = self.queue[self.queue_len - 1];
-        const next_time = last.start_ms + last.duration_ms + gap_ms;
-
-        start_time = @max(self.elapsed_ms, next_time);
-    }
-
-    self.sineAt(start_time, start, end, duration_ms, amplitude);
+    self.next_start_ms = start_ms +| duration_ms +| gap_ms;
 }
 
-/// Queue a single note described by `n`. Uniform entry point for the
-/// sequence helpers below.
 pub fn note(self: *Sound, n: Note) void {
     self.sine(n.from, n.to, n.duration_ms, n.amplitude, n.gap_ms);
 }
 
-/// Queue a sequence of notes back-to-back. Each note starts when the
-/// previous one ends, plus its own `gap_ms` (or `default_gap_ms` when
-/// the note doesn't override it). Notes may slide (`from != to`).
 pub fn melody(self: *Sound, notes: []const Note, default_gap_ms: u32) void {
     for (notes) |n| {
         self.note(.{
@@ -102,8 +93,6 @@ pub fn melody(self: *Sound, notes: []const Note, default_gap_ms: u32) void {
     }
 }
 
-/// Queue an arpeggio over `freqs`: each held for `note_ms`, separated
-/// by `gap_ms`. Descending when `up` is false.
 pub fn arp(
     self: *Sound,
     freqs: []const ff.audio.Freq,
@@ -112,17 +101,12 @@ pub fn arp(
     gap_ms: u32,
     up: bool,
 ) void {
-    var i: usize = 0;
-    while (i < freqs.len) : (i += 1) {
-        const f = if (up) freqs[i] else freqs[freqs.len - 1 - i];
+    for (0..freqs.len) |i| {
+        const f = freqs[if (up) i else freqs.len - 1 - i];
         self.sine(f, f, note_ms, amplitude, gap_ms);
     }
 }
 
-/// Queue a chord: all notes start together, staggered by `strum_ms`
-/// for a soft strummed feel. Pass 0 for a tight block chord.
-/// Note: with only 2 voices, keep chords to 2 notes (or raise the
-/// `gains`/`sines` arrays).
 pub fn chord(
     self: *Sound,
     freqs: []const ff.audio.Freq,
@@ -130,10 +114,10 @@ pub fn chord(
     amplitude: f32,
     strum_ms: u32,
 ) void {
-    const base: u32 = self.elapsed_ms;
     for (freqs, 0..) |f, i| {
+        const offset = strum_ms *| @as(u32, @intCast(i));
         self.sineAt(
-            base + strum_ms * @as(u32, @intCast(i)),
+            self.elapsed_ms +| offset,
             f,
             f,
             duration_ms,
@@ -142,8 +126,27 @@ pub fn chord(
     }
 }
 
-/// Queue `count` repeated hits of one pitch — staccato by default
-/// (`duty` = fraction of each period that actually sounds).
+/// Schedule a chord after the last queued note.
+pub fn chordAfter(
+    self: *Sound,
+    freqs: []const ff.audio.Freq,
+    duration_ms: u32,
+    amplitude: f32,
+    strum_ms: u32,
+) void {
+    const start_ms = @max(self.elapsed_ms, self.next_start_ms);
+
+    for (freqs, 0..) |freq, i| {
+        const offset = strum_ms *| @as(u32, @intCast(i));
+        self.sineAt(start_ms +| offset, freq, freq, duration_ms, amplitude);
+    }
+
+    if (freqs.len > 0) {
+        const last_offset = strum_ms *| @as(u32, @intCast(freqs.len - 1));
+        self.next_start_ms = start_ms +| last_offset +| duration_ms;
+    }
+}
+
 pub fn pulse(
     self: *Sound,
     f: ff.audio.Freq,
@@ -152,50 +155,46 @@ pub fn pulse(
     amplitude: f32,
     duty: f32,
 ) void {
-    const hold_ms: u32 = @intFromFloat(@as(f32, @floatFromInt(period_ms)) * duty);
+    const hold_ms: u32 = @intFromFloat(
+        @as(f32, @floatFromInt(period_ms)) * @max(0.0, @min(1.0, duty)),
+    );
+
     const rest_ms = period_ms - hold_ms;
-    var i: usize = 0;
-    while (i < count) : (i += 1) {
+
+    for (0..count) |_| {
         self.sine(f, f, hold_ms, amplitude, rest_ms);
     }
 }
 
-/// Silent tail after a note's audible end. Keeps the voice occupied
-/// for a few ms past the fade-out so expired-envelope artifacts land
-/// in silence instead of producing an end-of-note click.
-const tail_ms: u32 = 16;
-
 pub fn tick(self: *Sound, delta_ms: u32) void {
-    self.elapsed_ms += delta_ms;
+    self.elapsed_ms +|= delta_ms;
 
     var i: usize = 0;
 
     while (i < self.queue_len) {
-        var sound = self.queue[i];
+        const sound = &self.queue[i];
 
         const has_started = self.elapsed_ms >= sound.start_ms;
-        const local_ms: u32 = if (has_started)
+        const local_ms = if (has_started)
             self.elapsed_ms - sound.start_ms
         else
             0;
 
-        // Remove only after the audible end PLUS the silent tail.
-        if (has_started and local_ms >= sound.duration_ms + tail_ms) {
+        if (has_started and local_ms >= sound.duration_ms +| tail_ms) {
             self.queue_len -= 1;
-
             if (i != self.queue_len) {
                 self.queue[i] = self.queue[self.queue_len];
             }
-
             continue;
         }
 
         if (!sound.started and has_started) {
             const slot = self.index;
-            const s = &self.sines[slot];
-            const g = &self.gains[slot];
 
             self.index = (self.index + 1) % self.sines.len;
+
+            const s = &self.sines[slot];
+            const g = &self.gains[slot];
 
             g.node.reset_all();
 
@@ -208,8 +207,7 @@ pub fn tick(self: *Sound, delta_ms: u32) void {
                 },
             });
 
-            const fade_in_ms: u32 = @min(sound.duration_ms / 2, 4);
-            const fade_out_start_ms = fade_in_ms;
+            const fade_in_ms = @min(sound.duration_ms / 2, 4);
 
             g.modulate(.{
                 .linear = .{
@@ -224,24 +222,14 @@ pub fn tick(self: *Sound, delta_ms: u32) void {
                 .linear = .{
                     .start = sound.amplitude,
                     .end = 0.0,
-                    .start_at = .ms(fade_out_start_ms),
+                    .start_at = .ms(fade_in_ms),
                     .end_at = .ms(sound.duration_ms),
                 },
             });
 
             sound.started = true;
-            self.queue[i] = sound;
         }
 
         i += 1;
     }
 }
-
-const Sine = struct {
-    start_ms: u32,
-    duration_ms: u32,
-    start_freq: ff.audio.Freq,
-    end_freq: ff.audio.Freq,
-    amplitude: f32,
-    started: bool = false,
-};
