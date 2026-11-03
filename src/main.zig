@@ -265,7 +265,6 @@ const Init = struct {
 const Game = struct {
     fn update(_: *Game) void {
         Burial.update(DT);
-
         player.update();
 
         cam.center(player.pos);
@@ -279,7 +278,9 @@ const Game = struct {
         buryGhosts();
 
         const step = dawnStep();
-        if (step != Palette.dawn_step) Palette.apply(step);
+        if (step != Palette.dawn_step) {
+            Palette.apply(step);
+        }
 
         if (allBuried()) {
             enterClear();
@@ -291,13 +292,16 @@ const Game = struct {
             return;
         }
 
-        if (cheats.stateFlip and !btn.n and old.n) {
-            Palette.apply(0);
+        if (cheats.stateFlip) {
+            if (!btn.n and old.n) {
+                Palette.apply(0);
+                state = .Menu;
+            }
 
-            state = .Menu;
+            if (!btn.s and old.s) {
+                enterOver();
+            }
         }
-
-        if (cheats.stateFlip and !btn.s and old.s) enterOver();
     }
 
     fn render(_: *Game) void {
