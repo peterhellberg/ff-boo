@@ -103,8 +103,8 @@ pub fn render(p: *Player) void {
     const pt = ff.Point.from_vec(p.vel);
 
     Circle.new(
-        sp.add(pt.mul(.new(-10, -10))),
-        @intFromFloat(p.r * 0.004),
+        sp.add(pt.mul(.new(-8, -8))),
+        @intFromFloat(p.r * 0.005),
     ).draw(.{ .fill_color = .yellow });
 
     Circle.new(
@@ -124,19 +124,20 @@ pub fn render(p: *Player) void {
 
     const vel_len = @sqrt(@reduce(.Add, p.vel * p.vel));
 
-    if (vel_len < 0.001) return;
+    if (vel_len < 0.01) return;
+    { // Eyes
+        const dir = p.vel / @as(ff.Vec, @splat(vel_len));
+        const side_dir: ff.Vec = .{ -dir[1], dir[0] };
+        const forward = dir * @as(ff.Vec, @splat(5.0));
+        const side = side_dir * @as(ff.Vec, @splat(4.0));
+        const pupil = dir * @as(ff.Vec, @splat(2.0));
 
-    const dir = p.vel / @as(ff.Vec, @splat(vel_len));
-    const side_dir: ff.Vec = .{ -dir[1], dir[0] };
-    const forward = dir * @as(ff.Vec, @splat(5.0));
-    const side = side_dir * @as(ff.Vec, @splat(4.0));
-    const pupil = dir * @as(ff.Vec, @splat(2.0));
+        inline for (.{ side, -side }) |offset| {
+            const eye_pos = sp.add(.from_vec(forward + offset));
 
-    inline for (.{ side, -side }) |offset| {
-        const eye_pos = sp.add(.from_vec(forward + offset));
-
-        Circle.new(eye_pos, 9).draw(eye_white_style);
-        Circle.new(eye_pos.add(.from_vec(pupil)), 4).draw(eye_pupil_style);
+            Circle.new(eye_pos, 9).draw(eye_white_style);
+            Circle.new(eye_pos.add(.from_vec(pupil)), 4).draw(eye_pupil_style);
+        }
     }
 }
 
