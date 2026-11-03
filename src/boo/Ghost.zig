@@ -85,9 +85,14 @@ fn wander(self: *Ghost) void {
 
     self.vec += self.dir * @as(ff.Vec, @splat(WANDER_SPEED));
     self.pos = .from_vec(self.vec);
+
     self.bounce();
 
-    if (self.pos.sub(Boo.player.pos).len() < FOLLOW_RADIUS) {
+    const delta = self.pos.sub(Boo.player.pos);
+    const dx: f32 = @floatFromInt(delta.x);
+    const dy: f32 = @floatFromInt(delta.y);
+
+    if (dx * dx + dy * dy < FOLLOW_RADIUS * FOLLOW_RADIUS) {
         self.state = .follow;
         Boo.followSound();
     }
