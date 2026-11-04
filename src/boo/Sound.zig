@@ -107,25 +107,6 @@ pub fn arp(
     }
 }
 
-pub fn chord(
-    self: *Sound,
-    freqs: []const ff.audio.Freq,
-    duration_ms: u32,
-    amplitude: f32,
-    strum_ms: u32,
-) void {
-    for (freqs, 0..) |f, i| {
-        const offset = strum_ms *| @as(u32, @intCast(i));
-        self.sineAt(
-            self.elapsed_ms +| offset,
-            f,
-            f,
-            duration_ms,
-            amplitude,
-        );
-    }
-}
-
 /// Schedule a chord after the last queued note.
 pub fn chordAfter(
     self: *Sound,
@@ -144,25 +125,6 @@ pub fn chordAfter(
     if (freqs.len > 0) {
         const last_offset = strum_ms *| @as(u32, @intCast(freqs.len - 1));
         self.next_start_ms = start_ms +| last_offset +| duration_ms;
-    }
-}
-
-pub fn pulse(
-    self: *Sound,
-    f: ff.audio.Freq,
-    count: usize,
-    period_ms: u32,
-    amplitude: f32,
-    duty: f32,
-) void {
-    const hold_ms: u32 = @intFromFloat(
-        @as(f32, @floatFromInt(period_ms)) * @max(0.0, @min(1.0, duty)),
-    );
-
-    const rest_ms = period_ms - hold_ms;
-
-    for (0..count) |_| {
-        self.sine(f, f, hold_ms, amplitude, rest_ms);
     }
 }
 
