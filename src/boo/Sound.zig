@@ -1,197 +1,187 @@
 const ff = @import("ff");
 
+const a = ff.audio;
+
 const Sound = @This();
 
-gains: [2]ff.audio.Gain = undefined,
-sines: [2]ff.audio.Sine = undefined,
-
-queue: [16]Sine = undefined,
-queue_len: usize = 0,
-
-index: usize = 0,
-elapsed_ms: u32 = 0,
-next_start_ms: u32 = 0,
-
-pub const Note = struct {
-    from: ff.audio.Freq,
-    to: ff.audio.Freq,
-    duration_ms: u32,
-    amplitude: f32 = 0.12,
-    gap_ms: u32 = 0,
-};
-
-const Sine = struct {
-    start_ms: u32,
-    duration_ms: u32,
-    start_freq: ff.audio.Freq,
-    end_freq: ff.audio.Freq,
-    amplitude: f32,
-    started: bool = false,
-};
-
-const tail_ms: u32 = 16;
-
 pub fn init() Sound {
-    var s: Sound = .{};
+    return .{
+        .follow_voice = .init(&a.out),
+        .burial_mute = buildBurial(&a.out),
+        .oneshot = a.out.node.addMix(),
+    };
+}
 
-    for (&s.sines, &s.gains) |*oscillator, *gain| {
-        gain.* = ff.audio.out.node.addGain(0.0);
-        oscillator.* = gain.node.addSine(.hz(0.0), 0.0);
+pub fn follow(self: *Sound) void {
+    const now = ff.getTime() / 1000;
+
+    if (now < self.follow_gate_ms) return;
+
+    self.follow_gate_ms = now + 90;
+
+    self.follow_voice.play(.e4, .g4, 70, 0.06);
+}
+
+pub fn burial(self: *Sound) void {
+    self.burial_mute.node.reset_all();
+}
+
+pub fn clear(self: *Sound) void {
+    self.oneshot.node.clear();
+    {
+        buildClear(&self.oneshot);
+    }
+    self.oneshot.node.reset_all();
+}
+
+pub fn dawn(self: *Sound) void {
+    self.oneshot.node.clear();
+    {
+        buildDawn(&self.oneshot);
+    }
+    self.oneshot.node.reset_all();
+}
+
+const Voice = struct {
+    gain: a.Gain,
+    osc: a.Sine,
+
+    fn init(parent: *const a.BaseNode) Voice {
+        const gain = parent.node.addGain(0);
+        const osc = gain.node.addSine(a.Freq.zero, 0);
+
+        return .{ .gain = gain, .osc = osc };
     }
 
-    return s;
-}
+    fn play(
+        self: Voice,
+        from: a.Freq,
+        to: a.Freq,
+        dur_ms: u32,
+        amp: f32,
+    ) void {
+        self.osc.modulate(.{
+            .linear = .{
+                .start = from.h,
+                .end = to.h,
+                .start_at = a.Time.zero,
+                .end_at = a.Time.ms(dur_ms),
+            },
+        });
 
-pub fn sineAt(
-    self: *Sound,
-    start_ms: u32,
-    start: ff.audio.Freq,
-    end: ff.audio.Freq,
-    duration_ms: u32,
-    amplitude: f32,
+        self.gain.modulate(.{
+            .adsr = .{
+                .attack = a.Time.ms(3),
+                .decay = a.Time.ms(3),
+                .sustain = a.Time.ms(dur_ms -| 8),
+                .sustain_level = 1,
+                .release = a.Time.ms(dur_ms),
+                .low = 0,
+                .high = amp,
+            },
+        });
+
+        self.gain.node.reset_all();
+    }
+};
+
+follow_voice: Voice,
+burial_mute: a.Mute,
+oneshot: a.Mix,
+follow_gate_ms: u64 = 0,
+
+fn note(
+    parent: *const a.BaseNode,
+    at_ms: u32,
+    from: a.Freq,
+    to: a.Freq,
+    dur_ms: u32,
+    amp: f32,
 ) void {
-    if (self.queue_len == self.queue.len) return;
+    const gate = parent.node.addPause();
 
-    self.queue[self.queue_len] = .{
-        .start_ms = start_ms,
-        .duration_ms = duration_ms,
-        .start_freq = start,
-        .end_freq = end,
-        .amplitude = amplitude,
-    };
-    self.queue_len += 1;
-}
+    gate.modulate(.{
+        .hold = .{
+            .before = 0,
+            .after = 1,
+            .time = a.Time.ms(at_ms),
+        },
+    });
 
-pub fn sine(
-    self: *Sound,
-    start: ff.audio.Freq,
-    end: ff.audio.Freq,
-    duration_ms: u32,
-    amplitude: f32,
-    gap_ms: u32,
-) void {
-    const start_ms = @max(self.elapsed_ms, self.next_start_ms);
+    const gain = gate.node.addGain(0);
 
-    self.sineAt(start_ms, start, end, duration_ms, amplitude);
+    gain.modulate(.{
+        .adsr = .{
+            .attack = a.Time.ms(3),
+            .decay = a.Time.ms(3),
+            .sustain = a.Time.ms(dur_ms -| 8),
+            .sustain_level = 1,
+            .release = a.Time.ms(dur_ms),
+            .low = 0,
+            .high = amp,
+        },
+    });
 
-    self.next_start_ms = start_ms +| duration_ms +| gap_ms;
-}
+    const osc = gain.node.addSine(from, 0);
 
-pub fn note(self: *Sound, n: Note) void {
-    self.sine(n.from, n.to, n.duration_ms, n.amplitude, n.gap_ms);
-}
-
-pub fn melody(self: *Sound, notes: []const Note, default_gap_ms: u32) void {
-    for (notes) |n| {
-        self.note(.{
-            .from = n.from,
-            .to = n.to,
-            .duration_ms = n.duration_ms,
-            .amplitude = n.amplitude,
-            .gap_ms = if (n.gap_ms == 0) default_gap_ms else n.gap_ms,
+    if (from.h != to.h) {
+        osc.modulate(.{
+            .linear = .{
+                .start = from.h,
+                .end = to.h,
+                .start_at = a.Time.zero,
+                .end_at = a.Time.ms(dur_ms),
+            },
         });
     }
 }
 
-pub fn arp(
-    self: *Sound,
-    freqs: []const ff.audio.Freq,
-    note_ms: u32,
-    amplitude: f32,
-    gap_ms: u32,
-    up: bool,
-) void {
-    for (0..freqs.len) |i| {
-        const f = freqs[if (up) i else freqs.len - 1 - i];
-        self.sine(f, f, note_ms, amplitude, gap_ms);
+fn buildBurial(parent: *const a.BaseNode) a.Mute {
+    const mute = parent.node.addMute();
+    const root = mute.node.addMix();
+
+    note(&root, 0, .e4, .a2, 100, 0.15);
+    note(&root, 100, .a2, .a2, 70, 0.08);
+
+    // Silent until the first burial; reset_all() unmutes the node.
+    mute.mute();
+
+    return mute;
+}
+
+fn buildClear(parent: *const a.BaseNode) void {
+    const root = parent.node.addMix();
+
+    _ = root.node.addZero();
+
+    const arp = root.node.addMix();
+    {
+        note(&arp, 0, .c4, .c4, 90, 0.12);
+        note(&arp, 105, .e4, .e4, 90, 0.12);
+        note(&arp, 210, .g4, .g4, 90, 0.12);
+    }
+
+    const melody = root.node.addMix();
+    {
+        note(&melody, 315, .c5, .c5, 90, 0.12);
+        note(&melody, 420, .b4, .c5, 280, 0.15);
     }
 }
 
-/// Schedule a chord after the last queued note.
-pub fn chordAfter(
-    self: *Sound,
-    freqs: []const ff.audio.Freq,
-    duration_ms: u32,
-    amplitude: f32,
-    strum_ms: u32,
-) void {
-    const start_ms = @max(self.elapsed_ms, self.next_start_ms);
+fn buildDawn(parent: *const a.BaseNode) void {
+    const root = parent.node.addMix();
 
-    for (freqs, 0..) |freq, i| {
-        const offset = strum_ms *| @as(u32, @intCast(i));
-        self.sineAt(start_ms +| offset, freq, freq, duration_ms, amplitude);
+    _ = root.node.addZero();
+
+    const melody = root.node.addMix();
+    {
+        note(&melody, 0, .a4, .a3, 400, 0.12);
+        note(&melody, 400, .a3, .e3, 500, 0.12);
     }
 
-    if (freqs.len > 0) {
-        const last_offset = strum_ms *| @as(u32, @intCast(freqs.len - 1));
-        self.next_start_ms = start_ms +| last_offset +| duration_ms;
-    }
-}
-
-pub fn tick(self: *Sound, delta_ms: u32) void {
-    self.elapsed_ms +|= delta_ms;
-
-    var i: usize = 0;
-
-    while (i < self.queue_len) {
-        const sound = &self.queue[i];
-
-        const has_started = self.elapsed_ms >= sound.start_ms;
-        const local_ms = if (has_started)
-            self.elapsed_ms - sound.start_ms
-        else
-            0;
-
-        if (has_started and local_ms >= sound.duration_ms +| tail_ms) {
-            self.queue_len -= 1;
-            if (i != self.queue_len) {
-                self.queue[i] = self.queue[self.queue_len];
-            }
-            continue;
-        }
-
-        if (!sound.started and has_started) {
-            const slot = self.index;
-
-            self.index = (self.index + 1) % self.sines.len;
-
-            const s = &self.sines[slot];
-            const g = &self.gains[slot];
-
-            g.node.reset_all();
-
-            s.modulate(.{
-                .linear = .{
-                    .start = sound.start_freq.h,
-                    .end = sound.end_freq.h,
-                    .start_at = .ms(0),
-                    .end_at = .ms(sound.duration_ms),
-                },
-            });
-
-            const fade_in_ms = @min(sound.duration_ms / 2, 4);
-
-            g.modulate(.{
-                .linear = .{
-                    .start = 0.0,
-                    .end = sound.amplitude,
-                    .start_at = .ms(0),
-                    .end_at = .ms(fade_in_ms),
-                },
-            });
-
-            g.modulate(.{
-                .linear = .{
-                    .start = sound.amplitude,
-                    .end = 0.0,
-                    .start_at = .ms(fade_in_ms),
-                    .end_at = .ms(sound.duration_ms),
-                },
-            });
-
-            sound.started = true;
-        }
-
-        i += 1;
+    const chord = root.node.addMix();
+    {
+        note(&chord, 960, .e3, .e3, 600, 0.08);
+        note(&chord, 1000, .b3, .b3, 600, 0.08);
     }
 }

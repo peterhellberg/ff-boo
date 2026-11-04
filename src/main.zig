@@ -49,6 +49,7 @@ var over: Over = .{};
 var buf: [1735]u8 = undefined;
 var hud_buf: [32]u8 = undefined;
 var fff: ff.Font = undefined;
+var sound: Sound = undefined;
 
 const NO_BUTTONS: ff.Buttons = .{
     .s = false,
@@ -94,9 +95,6 @@ const START: ff.Point = .new(
 
 var stars: [NUM_STARS]Star = @splat(.{});
 
-var sound: Sound = undefined;
-var last_time: u64 = 0;
-
 const GHOST_COLORS = [NUM_GHOSTS_MAX]ff.Color{
     .white,
     .red,
@@ -140,8 +138,6 @@ const State = enum {
             .Clear => clear.update(),
             .Over => over.update(),
         }
-
-        tickSound();
     }
 
     fn render(s: State) void {
@@ -255,6 +251,9 @@ const Init = struct {
 
         started_at = ff.getTime();
         level_ms = levelMs(level);
+
+        ff.logDebug("GAME!");
+        ff.logError("NOPE!");
 
         state = .Game;
     }
@@ -443,7 +442,7 @@ fn startRun() void {
 fn enterClear() void {
     const secs: i32 = @intCast((remainingMs() + 999) / 1000);
 
-    clearSound();
+    sound.clear();
 
     clear_bonus = secs * 5;
     run_score += clear_bonus;
@@ -475,7 +474,7 @@ fn enterOver() void {
     ));
     _ = ff.addScore(ff.getMe(), BOARD_SCORE, score);
 
-    dawnSound();
+    sound.dawn();
     state = .Over;
 }
 
@@ -713,7 +712,7 @@ fn buryGhosts() void {
 
         ghost.state = .buried;
 
-        burialSound();
+        sound.burial();
 
         const ghost_color = ghost.color;
         grave.ghost_color = ghost_color;
@@ -1044,74 +1043,8 @@ fn levelMs(l: u32) u64 {
     return 90_000 - @as(u64, @min(l - 1, 9)) * 5_000;
 }
 
-fn tickSound() void {
-    const now = ff.getTime();
-
-    const delta: u32 = if (now > last_time)
-        @intCast((now - last_time) / 1000)
-    else
-        0;
-
-    last_time = now;
-    sound.tick(delta);
-}
-
-var follow_gate_ms: u32 = 0;
-
 pub fn followSound() void {
-    if (sound.elapsed_ms < follow_gate_ms) return;
-    follow_gate_ms = sound.elapsed_ms + 90;
-
-    sound.sine(.e4, .g4, 70, 0.06, 0);
-}
-
-fn burialSound() void {
-    sound.melody(&.{
-        .{
-            .from = .e4,
-            .to = .a2,
-            .duration_ms = 100,
-            .amplitude = 0.15,
-        },
-        .{
-            .from = .a2,
-            .to = .a2,
-            .duration_ms = 70,
-            .amplitude = 0.08,
-        },
-    }, 0);
-}
-
-fn clearSound() void {
-    sound.arp(&.{ .c4, .e4, .g4, .c5 }, 90, 0.12, 15, true);
-    sound.melody(&.{
-        .{
-            .from = .b4,
-            .to = .c5,
-            .duration_ms = 280,
-            .amplitude = 0.15,
-        },
-    }, 20);
-}
-
-fn dawnSound() void {
-    sound.melody(&.{
-        .{
-            .from = .a4,
-            .to = .a3,
-            .duration_ms = 400,
-            .amplitude = 0.12,
-        },
-        .{
-            .from = .a3,
-            .to = .e3,
-            .duration_ms = 500,
-            .amplitude = 0.12,
-            .gap_ms = 60,
-        },
-    }, 0);
-
-    sound.chordAfter(&.{ .e3, .b3 }, 600, 0.08, 40);
+    sound.follow();
 }
 
 pub fn text(t: ff.String, p: ff.Point, c: ff.Color) void {
@@ -1146,12 +1079,13 @@ pub export fn boot() void {
 
     fff = ff.loadFile("font", buf[0..]);
 
+    sound = Sound.init();
+
     for (&stars) |*s| {
         s.pos = Random.pos(SPACE);
         s.c = Random.starColor();
     }
 
-    sound = Sound.init();
     Best.load();
 }
 
