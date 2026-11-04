@@ -62,6 +62,13 @@ const NO_BUTTONS: ff.Buttons = .{
 var btn: ff.Buttons = NO_BUTTONS;
 var old: ff.Buttons = NO_BUTTONS;
 
+const Button = std.meta.FieldEnum(ff.Buttons);
+
+fn released(comptime button: Button) bool {
+    return !@field(btn, @tagName(button)) and
+        @field(old, @tagName(button));
+}
+
 var frame: u32 = 0;
 
 var level: u32 = 1;
@@ -163,9 +170,12 @@ const Menu = struct {
     fn update(self: *Menu) void {
         if (@mod(frame, 12) == 0) self.blink = !self.blink;
 
-        if (!btn.e and old.e) startRun();
+        if (released(.e)) startRun();
 
-        if (cheats.stateFlip and !btn.s and old.s) enterOver();
+        if (released(.w)) sound.dawn();
+        if (released(.s)) sound.burial();
+
+        if (cheats.stateFlip and released(.s)) enterOver();
     }
 
     fn textBlockCentered(
@@ -292,12 +302,12 @@ const Game = struct {
         }
 
         if (cheats.stateFlip) {
-            if (!btn.n and old.n) {
+            if (released(.n)) {
                 Palette.apply(0);
                 state = .Menu;
             }
 
-            if (!btn.s and old.s) {
+            if (released(.s)) {
                 enterOver();
             }
         }
@@ -335,9 +345,9 @@ const Clear = struct {
 
 const Over = struct {
     fn update(_: *Over) void {
-        if (!btn.e and old.e) startRun();
+        if (released(.e)) startRun();
 
-        if (!btn.n and old.n) {
+        if (released(.n)) {
             Palette.apply(0);
 
             state = .Menu;
