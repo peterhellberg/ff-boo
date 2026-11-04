@@ -10,6 +10,7 @@ My entry for the [Firefly Zero Jam #3](https://itch.io/jam/firefly-jam-3) 🎃
 Using [Zig](https://ziglang.org/) to compile a ROM for use in [Firefly Zero](https://fireflyzero.com/),
 built on the [ff](https://github.com/peterhellberg/ff) SDK 🎮
 
+![peter.boo.008-8x](https://play.c7.se/ff/boo/shots/peter.boo.008-8x.png)
 ![peter.boo.002-8x](https://play.c7.se/ff/boo/shots/peter.boo.002-8x.png)
 ![peter.boo.004-8x](https://play.c7.se/ff/boo/shots/peter.boo.004-8x.png)
 
