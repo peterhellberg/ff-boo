@@ -19,7 +19,7 @@ const CLEAR_FRAMES = 120;
 const BOARD_SCORE: ff.Board = 1;
 const SW = SPACE.size.width;
 const SH = SPACE.size.height;
-const HORIZON: i32 = SPACE.size.height - 10;
+const HORIZON: i32 = SH - 10;
 const RAY_DIRS = rayDirs(12);
 
 const BADGE_GRAVEDIGGER: ff.Badge = 1;
@@ -490,8 +490,8 @@ fn generate() void {
     const inner: ff.Rect = .new(
         margin,
         margin,
-        SPACE.size.width - margin * 2,
-        SPACE.size.height - margin * 2,
+        SW - margin * 2,
+        SH - margin * 2,
     );
     const center = START;
 
