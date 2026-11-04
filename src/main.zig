@@ -883,6 +883,7 @@ fn renderStars() void {
 }
 
 const SUN_REACH: i32 = 56;
+const SCENE_TOP = HORIZON - 72 - SUN_REACH;
 
 const HILL_BOUNDS = [_]ff.Rect{
     .new(-186, HORIZON - 12, 384, 36),
@@ -891,8 +892,11 @@ const HILL_BOUNDS = [_]ff.Rect{
 };
 
 fn renderSunAndHills() void {
-    const horizon: f32 = @floatFromInt(HORIZON);
     const cp = cam.rect.point;
+
+    if (cp.y + SH <= SCENE_TOP) return;
+
+    const horizon: f32 = @floatFromInt(HORIZON);
 
     { // Sun
         const p = dawnProgress();
