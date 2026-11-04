@@ -52,6 +52,7 @@ const Popup = struct {
     life: f32,
     text: [8]u8, // fixed buffer, e.g. "+100"
     text_len: usize,
+    color: ff.Color,
 };
 
 const MAX_POPUPS = 8;
@@ -140,7 +141,7 @@ pub fn render(cam: anytype, draw: anytype) void {
             @intFromFloat(@round(p.y)),
         ));
 
-        Boo.text(p.text[0..p.text_len], sp, .white);
+        Boo.text(p.text[0..p.text_len], sp, p.color);
     }
 }
 
@@ -151,7 +152,7 @@ pub fn trigger(pos: ff.Point, points: i32, ghost_color: ff.Color) void {
     const y = @as(f32, @floatFromInt(pos.y));
 
     spawnParticles(x, y, ghost_color);
-    spawnPopup(x, y, points);
+    spawnPopup(x, y, points, ghost_color);
 }
 
 // ---------------------------------------------------------------------------
@@ -175,24 +176,22 @@ fn spawnParticle(x: f32, y: f32, vx: f32, vy: f32, life: f32, color: ff.Color) v
 }
 
 fn spawnParticles(x: f32, y: f32, color: ff.Color) void {
-    const tau = std.math.tau;
+    const step = std.math.tau / @as(f32, BURIAL_PARTICLES);
 
-    var k: usize = 0;
-
-    while (k < BURIAL_PARTICLES) : (k += 1) {
-        const delay: f32 = @as(f32, @floatFromInt(k % 4)); // 0..3, staggers lifetimes
-        const speed: f32 = 15 + @as(f32, @floatFromInt((k * 37) % 25)); // 15..39
-        const angle: f32 = @as(f32, @floatFromInt(k)) * (tau / @as(f32, BURIAL_PARTICLES));
+    for (0..BURIAL_PARTICLES) |k| {
+        const kf: f32 = @floatFromInt(k);
+        const delay: f32 = @floatFromInt(k % 4);
+        const speed: f32 = 15 + @as(f32, @floatFromInt(k * 37 % 25));
+        const angle = kf * step;
         const vx = @cos(angle) * speed;
-        const vy = @sin(angle) * speed * 0.6 - 25; // squashed vertically + upward bias
-        const jitter_x = @as(f32, @floatFromInt(@as(i32, @intCast(k * 13 % 7)) - 3));
-        const jitter_y = @as(f32, @floatFromInt(@as(i32, @intCast(k * 5 % 5)) - 2));
+        const vy = @sin(angle) * speed * 0.6 - 25;
+        const jitter_x: f32 = @floatFromInt(@as(i32, @intCast(k * 13 % 7)) - 3);
 
-        spawnParticle(x + jitter_x, y + jitter_y, vx, vy, 0.5 + delay * 0.1, color);
+        spawnParticle(x + jitter_x, y, vx, vy, 0.5 + delay * 0.1, color);
     }
 }
 
-fn spawnPopup(x: f32, y: f32, points: i32) void {
+fn spawnPopup(x: f32, y: f32, points: i32, color: ff.Color) void {
     if (popup_count >= MAX_POPUPS) return;
 
     var p = Popup{
@@ -201,6 +200,7 @@ fn spawnPopup(x: f32, y: f32, points: i32) void {
         .life = POPUP_LIFETIME,
         .text = undefined,
         .text_len = 0,
+        .color = color,
     };
 
     const buf = std.fmt.bufPrint(&p.text, "+{d}", .{points}) catch return;
