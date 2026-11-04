@@ -776,16 +776,9 @@ fn renderWorld(show_player: bool) void {
     if (show_player) player.render();
 }
 
-/// Small deterministic hash — same inputs always give same output.
-fn hash2(x: u32, y: u32) u32 {
-    var h = x *% 374761393 +% y *% 668265263;
-    h = (h ^ (h >> 13)) *% 1274126177;
-    return h ^ (h >> 16);
-}
-
-/// Draws brick mortar lines + speckles into a local rect of
-/// `long` x `cross` pixels, where `long` is the brick-row direction.
-fn drawBrickPattern(px: i32, py: i32, w: i32, h: i32, seed: u32, comptime horizontal: bool) void {
+/// Draws brick mortar lines into a local rect of `long` x `cross` pixels,
+/// where `long` is the brick-row direction.
+fn drawBrickPattern(px: i32, py: i32, w: i32, h: i32, comptime horizontal: bool) void {
     const brick_len: i32 = 16;
     const row_h: i32 = 8;
 
@@ -807,9 +800,6 @@ fn drawBrickPattern(px: i32, py: i32, w: i32, h: i32, seed: u32, comptime horizo
             return along;
         }
     };
-
-    const speck_x_mod: u32 = @intCast(brick_len - 1);
-    const speck_y_mod: u32 = @intCast(row_h - 1);
 
     // Mortar rows + vertical joints.
     var row: i32 = 0;
@@ -846,40 +836,6 @@ fn drawBrickPattern(px: i32, py: i32, w: i32, h: i32, seed: u32, comptime horizo
             );
         }
     }
-
-    // Speckles: 2-3 deterministic dots per brick.
-    var brow: i32 = 0;
-    while (brow < cross) : (brow += row_h) {
-        var bcol: i32 = 0;
-        while (bcol < long) : (bcol += brick_len) {
-            const hsh = hash2(
-                seed +% @as(u32, @bitCast(bcol)),
-                @as(u32, @bitCast(brow)),
-            );
-
-            const n_specks = 1 + (hsh % 2);
-
-            var s: u32 = 0;
-            while (s < n_specks) : (s += 1) {
-                const s_offset = s *% 2;
-
-                const hx = hash2(hsh, s_offset +% 1);
-                const hy = hash2(hsh, s_offset +% 2);
-
-                const along = bcol + @as(i32, @intCast(hx % speck_x_mod));
-                const across = brow + @as(i32, @intCast(hy % speck_y_mod));
-
-                if (along >= long or across >= cross) continue;
-
-                const color: ff.Color = if (hx & 1 == 0) .gray else .black;
-
-                draw.Point(
-                    .new(M.x(along, across) + px, M.y(along, across) + py),
-                    color,
-                );
-            }
-        }
-    }
 }
 
 fn renderWalls() void {
@@ -906,14 +862,10 @@ fn renderWalls() void {
             const bh = w.size.height - 2;
             if (bw <= 0 or bh <= 0) continue;
 
-            // World-space seed so the pattern is stable across frames AND
-            // continuous across adjacent wall segments.
-            const seed: u32 = @bitCast(w.point.x *% 31 +% w.point.y *% 733);
-
             if (w.size.width >= w.size.height) {
-                drawBrickPattern(bx, by, bw, bh, seed, true);
+                drawBrickPattern(bx, by, bw, bh, true);
             } else {
-                drawBrickPattern(bx, by, bw, bh, seed, false);
+                drawBrickPattern(bx, by, bw, bh, false);
             }
         }
     }
