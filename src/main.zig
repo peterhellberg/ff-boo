@@ -168,9 +168,6 @@ const Menu = struct {
 
         if (released(.e)) startRun();
 
-        if (released(.w)) sound.dawn();
-        if (released(.s)) sound.burial();
-
         if (cheats.stateFlip and released(.s)) enterOver();
     }
 
