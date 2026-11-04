@@ -25,7 +25,7 @@ built on the [ff](https://github.com/peterhellberg/ff) SDK 🎮
 
 ## Development
 
-Build and run in the Firefly Zero emulator:
+Build and run in the [Firefly Zero emulator](https://github.com/firefly-zero/firefly-emulator):
 ```sh
 zig build run
 ```
