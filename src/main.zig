@@ -54,6 +54,7 @@ var buf: [1735]u8 = undefined;
 var hud: [32]u8 = undefined;
 var fff: ff.Font = undefined;
 var sound: Sound = undefined;
+var me: ff.Peer = undefined;
 
 const NO_BUTTONS: ff.Buttons = .{
     .s = false,
@@ -476,7 +477,7 @@ fn enterOver() void {
         0,
         @min(run_score, @as(i32, std.math.maxInt(i16))),
     ));
-    _ = ff.addScore(ff.getMe(), BOARD_SCORE, score);
+    _ = ff.addScore(me, BOARD_SCORE, score);
 
     sound.dawn();
     state = .Over;
@@ -729,8 +730,6 @@ fn buryGhosts() void {
 
         Best.total_buried += 1;
 
-        const me = ff.getMe();
-
         _ = ff.addProgress(me, BADGE_GRAVEDIGGER, 1);
         _ = ff.addProgress(me, BADGE_GHOSTBUSTER, 1);
         _ = ff.addProgress(me, BADGE_SHEPHERD, 1);
@@ -883,66 +882,85 @@ fn renderStars() void {
     }
 }
 
+const SUN_REACH: i32 = 56;
+
+const HILL_BOUNDS = [_]ff.Rect{
+    .new(-186, HORIZON - 12, 384, 36),
+    .new(108, HORIZON - 18, 504, 44),
+    .new(444, HORIZON - 12, 360, 34),
+};
+
 fn renderSunAndHills() void {
     const horizon: f32 = @floatFromInt(HORIZON);
-    const backdrop = HORIZON - 160;
-
-    if (!cam.intersects(.new(0, backdrop, SW, SH - backdrop))) return;
-
-    const p = dawnProgress();
-
-    const by = horizon + 44.0;
-    const ey = horizon - 72.0;
-    const cx: i32 = SW / 2;
-    const cy: i32 = @intFromFloat(by - p * (by - ey));
     const cp = cam.rect.point;
-    const sx = cx - cp.x;
-    const sy = cy - cp.y;
 
     { // Sun
-        { // Rays
-            const spin: f32 = @as(f32, @floatFromInt(frame)) * 0.004;
-            const spin_c = @cos(spin);
-            const spin_s = @sin(spin);
+        const p = dawnProgress();
 
-            const grow = 1.0 + p;
-            const lr = 20.0 + 18.0 * grow;
-            const sr = 20.0 + 8.0 * grow;
+        const by = horizon + 44.0;
+        const ey = horizon - 72.0;
+        const cx: i32 = SW / 2;
+        const cy: i32 = @intFromFloat(by - p * (by - ey));
+        const sx = cx - cp.x;
+        const sy = cy - cp.y;
 
-            for (RAY_DIRS, 0..) |d, i| {
-                const dx = d[0] * spin_c - d[1] * spin_s;
-                const dy = d[0] * spin_s + d[1] * spin_c;
+        const visible =
+            sx + SUN_REACH > 0 and sx - SUN_REACH < SW and
+            sy + SUN_REACH > 0 and sy - SUN_REACH < SH;
 
-                const outer = if (i % 2 == 0) lr else sr;
+        if (visible) {
+            { // Rays
+                const spin: f32 = @as(f32, @floatFromInt(frame)) * 0.004;
+                const spin_c = @cos(spin);
+                const spin_s = @sin(spin);
 
-                draw.line(
-                    sx + @as(i32, @intFromFloat(dx * 20.0)),
-                    sy + @as(i32, @intFromFloat(dy * 20.0)),
-                    sx + @as(i32, @intFromFloat(dx * outer)),
-                    sy + @as(i32, @intFromFloat(dy * outer)),
-                    .{ .color = .orange },
-                );
+                const grow = 1.0 + p;
+                const lr = 20.0 + 18.0 * grow;
+                const sr = 20.0 + 8.0 * grow;
+
+                for (RAY_DIRS, 0..) |d, i| {
+                    const dx = d[0] * spin_c - d[1] * spin_s;
+                    const dy = d[0] * spin_s + d[1] * spin_c;
+
+                    const outer = if (i % 2 == 0) lr else sr;
+
+                    draw.line(
+                        sx + @as(i32, @intFromFloat(dx * 20.0)),
+                        sy + @as(i32, @intFromFloat(dy * 20.0)),
+                        sx + @as(i32, @intFromFloat(dx * outer)),
+                        sy + @as(i32, @intFromFloat(dy * outer)),
+                        .{ .color = .orange },
+                    );
+                }
             }
+
+            draw.circ(sx - 18, sy - 18, 36, .{
+                .fill_color = .orange,
+                .stroke_color = .yellow,
+                .stroke_width = 1,
+            });
+
+            draw.circ(sx - 8, sy - 8, 16, .{
+                .fill_color = .yellow,
+            });
         }
-
-        draw.circ(sx - 18, sy - 18, 36, .{
-            .fill_color = .orange,
-            .stroke_color = .yellow,
-            .stroke_width = 1,
-        });
-
-        draw.circ(sx - 8, sy - 8, 16, .{ .fill_color = .yellow });
     }
 
     { // Hills
-        draw.elli(-186 - cp.x, HORIZON - 12 - cp.y, 384, 36, .{ .fill_color = .dark_gray });
-        draw.elli(108 - cp.x, HORIZON - 18 - cp.y, 504, 44, .{ .fill_color = .dark_gray });
-        draw.elli(444 - cp.x, HORIZON - 12 - cp.y, 360, 34, .{ .fill_color = .dark_gray });
+        for (HILL_BOUNDS) |h| {
+            if (cam.intersects(h)) {
+                draw.elli(h.point.x - cp.x, h.point.y - cp.y, h.size.width, h.size.height, .{
+                    .fill_color = .dark_gray,
+                });
+            }
+        }
     }
 
-    { //Ground
-        draw.rect(-cp.x, HORIZON - cp.y, SW, SH - HORIZON, .{ .fill_color = .gray });
-        draw.line(-cp.x, HORIZON - cp.y, SW - cp.x, HORIZON - cp.y, .{ .color = .black });
+    { // Ground
+        if (HORIZON - cp.y < SH) {
+            draw.rect(-cp.x, HORIZON - cp.y, SW, SH - HORIZON, .{ .fill_color = .gray });
+            draw.line(-cp.x, HORIZON - cp.y, SW - cp.x, HORIZON - cp.y, .{ .color = .black });
+        }
     }
 }
 
@@ -1058,6 +1076,8 @@ pub export fn cheat(cmd: i32, val: i32) i32 {
 
 pub export fn boot() void {
     Palette.apply(0);
+
+    me = ff.getMe();
 
     fff = ff.loadFile("font", buf[0..]);
 
