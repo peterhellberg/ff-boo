@@ -262,9 +262,6 @@ const Init = struct {
         started_at = ff.getTime();
         level_ms = levelMs(level);
 
-        ff.logDebug("GAME!");
-        ff.logError("NOPE!");
-
         state = .Game;
     }
 
