@@ -47,7 +47,7 @@ var clear: Clear = .{};
 var over: Over = .{};
 
 var buf: [1735]u8 = undefined;
-var hud_buf: [32]u8 = undefined;
+var hud: [32]u8 = undefined;
 var fff: ff.Font = undefined;
 var sound: Sound = undefined;
 
@@ -989,7 +989,7 @@ fn renderSunAndHills() void {
 }
 
 fn hudPrint(comptime fmt: []const u8, args: anytype) std.fmt.BufPrintError![]u8 {
-    return std.fmt.bufPrint(&hud_buf, fmt, args);
+    return std.fmt.bufPrint(&hud, fmt, args);
 }
 
 fn renderHud() void {
