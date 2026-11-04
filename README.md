@@ -14,7 +14,7 @@ built on the [ff](https://github.com/peterhellberg/ff) SDK 🎮
 
 > [!TIP]
 > You can run the latest version of [peter.boo](https://catalog.fireflyzero.com/peter.boo)
-> in the Firefly Emulator like this;
+> in the [Firefly Zero Emulator](https://docs.fireflyzero.com/dev/emulator/) like this;
 > ```sh
 > PLAY="$(curl https://fireflyzero.com/play.sh)"
 > bash -c "$PLAY" -- peter.boo
