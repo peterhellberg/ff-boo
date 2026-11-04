@@ -26,6 +26,11 @@ pub fn build(b: *std.Build) !void {
     exe.entry = .disabled;
     exe.rdynamic = true;
 
+    exe.import_memory = false;
+    exe.initial_memory = 65536;
+    exe.max_memory = 65536;
+    exe.stack_size = 14752;
+
     b.installArtifact(exe);
 
     const run_cmd = b.addSystemCommand(&[_][]const u8{
