@@ -144,13 +144,14 @@ pub fn render(cam: anytype, draw: anytype) void {
     }
 }
 
-/// Spawn the full burial effect at a world position, in the ghost's color.
-pub fn trigger(pos: ff.Point, ghost_color: ff.Color) void {
+/// Spawn the full burial effect at a world position,
+/// the provided points, in the ghost's color.
+pub fn trigger(pos: ff.Point, points: i32, ghost_color: ff.Color) void {
     const x = @as(f32, @floatFromInt(pos.x));
     const y = @as(f32, @floatFromInt(pos.y));
 
     spawnParticles(x, y, ghost_color);
-    spawnPopup(x, y, 100);
+    spawnPopup(x, y, points);
 }
 
 // ---------------------------------------------------------------------------

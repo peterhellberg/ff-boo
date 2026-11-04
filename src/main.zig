@@ -707,6 +707,7 @@ fn separateGhosts() void {
 }
 
 fn buryGhosts() void {
+    const points = 100;
     const radius = Ghost.BURY_RADIUS;
     const radius_sq = radius * radius;
 
@@ -728,9 +729,9 @@ fn buryGhosts() void {
         grave.ghost_color = ghost_color;
         grave.filled = true;
 
-        Burial.trigger(grave.pos, ghost_color);
+        Burial.trigger(grave.pos, points, ghost_color);
 
-        run_score += 100;
+        run_score += points;
 
         Best.total_buried += 1;
 
