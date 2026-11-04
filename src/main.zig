@@ -17,6 +17,10 @@ const Star = @import("boo/Star.zig");
 
 const CLEAR_FRAMES = 120;
 const BOARD_SCORE: ff.Board = 1;
+const SW = SPACE.size.width;
+const SH = SPACE.size.height;
+const HORIZON: i32 = SPACE.size.height - 10;
+const RAY_DIRS = rayDirs(12);
 
 const BADGE_GRAVEDIGGER: ff.Badge = 1;
 const BADGE_GHOSTBUSTER: ff.Badge = 2;
@@ -347,7 +351,6 @@ const Over = struct {
 
     fn render(_: *Over) void {
         renderWorld(false);
-        renderSunAndHills();
 
         panel(42, 26, 156, 118);
 
@@ -880,56 +883,81 @@ fn renderStars() void {
     }
 }
 
-const HORIZON_Y: i32 = 150;
-
 fn renderSunAndHills() void {
-    // Sun starts fully below the horizon (center = horizon + radius +
-    // glow margin) and climbs to its mid-sky perch as dawn progresses.
-    // The hills and ground are drawn on top, so the sun emerges from
-    // behind them — no gate needed, it's simply invisible at first.
+    const horizon: f32 = @floatFromInt(HORIZON);
+    const backdrop = HORIZON - 160;
+
+    if (!cam.intersects(.new(0, backdrop, SW, SH - backdrop))) return;
+
     const p = dawnProgress();
-    const cx: i32 = 178;
-    const start_y: f32 = @as(f32, HORIZON_Y) + 44.0; // fully hidden
-    const end_y: f32 = 78.0;
-    const cy: i32 = @intFromFloat(start_y - p * (start_y - end_y));
 
-    // Rays turn slowly and reach further as the sun climbs. Alternating
-    // lengths make the turn visible, since evenly spaced rays look static.
-    const spin: f32 = @as(f32, @floatFromInt(frame)) * 0.004;
+    const by = horizon + 44.0;
+    const ey = horizon - 72.0;
+    const cx: i32 = SW / 2;
+    const cy: i32 = @intFromFloat(by - p * (by - ey));
+    const cp = cam.rect.point;
+    const sx = cx - cp.x;
+    const sy = cy - cp.y;
 
-    for (0..12) |i| {
-        const a = spin + @as(f32, @floatFromInt(i)) * (std.math.pi / 6.0);
-        const reach: f32 = if (i % 2 == 0) 18.0 + p * 18.0 else 8.0 + p * 8.0;
+    { // Sun
+        { // Rays
+            const spin: f32 = @as(f32, @floatFromInt(frame)) * 0.004;
+            const spin_c = @cos(spin);
+            const spin_s = @sin(spin);
 
-        const dx = @cos(a);
-        const dy = @sin(a);
+            const grow = 1.0 + p;
+            const lr = 20.0 + 18.0 * grow;
+            const sr = 20.0 + 8.0 * grow;
 
-        draw.line(
-            cx + @as(i32, @intFromFloat(dx * 20.0)),
-            cy + @as(i32, @intFromFloat(dy * 20.0)),
-            cx + @as(i32, @intFromFloat(dx * (20.0 + reach))),
-            cy + @as(i32, @intFromFloat(dy * (20.0 + reach))),
-            .{ .color = .orange },
-        );
+            for (RAY_DIRS, 0..) |d, i| {
+                const dx = d[0] * spin_c - d[1] * spin_s;
+                const dy = d[0] * spin_s + d[1] * spin_c;
+
+                const outer = if (i % 2 == 0) lr else sr;
+
+                draw.line(
+                    sx + @as(i32, @intFromFloat(dx * 20.0)),
+                    sy + @as(i32, @intFromFloat(dy * 20.0)),
+                    sx + @as(i32, @intFromFloat(dx * outer)),
+                    sy + @as(i32, @intFromFloat(dy * outer)),
+                    .{ .color = .orange },
+                );
+            }
+        }
+
+        draw.circ(sx - 18, sy - 18, 36, .{
+            .fill_color = .orange,
+            .stroke_color = .yellow,
+            .stroke_width = 1,
+        });
+
+        draw.circ(sx - 8, sy - 8, 16, .{ .fill_color = .yellow });
     }
 
-    draw.circ(cx - 18, cy - 18, 36, .{
-        .fill_color = .orange,
-        .stroke_color = .yellow,
-        .stroke_width = 1,
-    });
+    { // Hills
+        draw.elli(-186 - cp.x, HORIZON - 12 - cp.y, 384, 36, .{ .fill_color = .dark_gray });
+        draw.elli(108 - cp.x, HORIZON - 18 - cp.y, 504, 44, .{ .fill_color = .dark_gray });
+        draw.elli(444 - cp.x, HORIZON - 12 - cp.y, 360, 34, .{ .fill_color = .dark_gray });
+    }
 
-    draw.circ(cx - 8, cy - 8, 16, .{ .fill_color = .yellow });
+    { //Ground
+        draw.rect(-cp.x, HORIZON - cp.y, SW, SH - HORIZON, .{ .fill_color = .gray });
+        draw.line(-cp.x, HORIZON - cp.y, SW - cp.x, HORIZON - cp.y, .{ .color = .black });
+    }
+}
 
-    // Rolling hills sit on the horizon; the ground strip covers their bases.
-    draw.elli(-24, 138, 128, 36, .{ .fill_color = .dark_gray });
-    draw.elli(74, 132, 168, 44, .{ .fill_color = .dark_gray });
-    draw.elli(186, 138, 120, 34, .{ .fill_color = .dark_gray });
+fn rayDirs(comptime n: usize) [n][2]f32 {
+    const step = std.math.tau / @as(f32, @floatFromInt(n));
 
-    draw.rect(0, HORIZON_Y, ff.width, ff.height - HORIZON_Y, .{
-        .fill_color = .gray,
-    });
-    draw.line(0, HORIZON_Y, ff.width, HORIZON_Y, .{ .color = .black });
+    var dirs: [n][2]f32 = undefined;
+
+    for (0..n) |i| {
+        const a = step * @as(f32, @floatFromInt(i));
+
+        dirs[i] = .{ @cos(a), @sin(a) };
+    }
+
+    return dirs;
 }
 
 fn hudPrint(comptime fmt: []const u8, args: anytype) std.fmt.BufPrintError![]u8 {
