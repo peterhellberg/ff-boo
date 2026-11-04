@@ -1,7 +1,5 @@
 const ff = @import("ff");
 
-const Camera = @import("Camera.zig");
-
 const Boo = @import("../main.zig");
 
 const Star = @This();
