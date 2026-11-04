@@ -123,13 +123,9 @@ const State = enum {
     fn update(s: State) void {
         frame += 1;
 
-        const me = ff.getMe();
-        {
-            pad = ff.readPad(me).?;
-
-            old = btn;
-            btn = ff.readButtons(me);
-        }
+        old = btn;
+        btn = ff.readButtons(.combined);
+        pad = ff.readPad(.combined).?;
 
         // Cheat: start a fresh game once, so a headless run can be profiled.
         // One-shot, so with the cheat unused this is inert.
