@@ -15,13 +15,13 @@ built on the [ff](https://github.com/peterhellberg/ff) SDK 🎮
 
 ## How to play
 
-- **Move** around the graveyard (DPad or touchpad — `readPad`/`readButtons`) to approach wandering ghosts.
-- **Walls** form a loose maze — walk around them. Ghosts drift straight through.
-- Ghosts within range will **follow you** — lead them gently, don't lose them.
-- Guide each ghost to its **grave** before the countdown hits zero.
-- The palette slowly brightens as dawn approaches
-    (`Color.set` / `Palette.set` shift the palette per dawn level) — the sun
-    climbs over the hills as the timer runs out.
+- **Move** around the graveyard _(touchpad)_ to approach wandering ghosts.
+- **Walls** form a loose maze
+  - Walk around them. 
+  - Ghosts drift straight through.
+- Ghosts within range will **follow you**
+  - Lead them gently, don't lose them.
+- Guide each ghost to its **grave** before dawn breaks.
 
 ## Development
 
@@ -33,11 +33,6 @@ zig build run
 File watcher (`spy`) can be started by calling:
 ```sh
 zig build spy
-```
-
-Run the tests:
-```sh
-zig build test
 ```
 
 ## Technical notes
