@@ -141,10 +141,6 @@ pub fn render(p: *Player) void {
     }
 }
 
-pub fn circle(self: *const Player) Circle {
-    return .new(self.pos, self.d);
-}
-
 fn rectCenter(r: ff.Rect) ff.Point {
     return .{
         .x = r.size.width / 2,
