@@ -176,7 +176,7 @@ fn buildDawn(parent: *const a.BaseNode) void {
     const melody = root.node.addMix();
     {
         note(&melody, 0, .a4, .a3, 400, 0.12);
-        note(&melody, 400, .a3, .e3, 500, 0.12);
+        note(&melody, 400, .a3, .e3, 150, 0.12);
     }
 
     const chord = root.node.addMix();
