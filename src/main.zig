@@ -164,7 +164,7 @@ const Menu = struct {
     blink: bool = false,
 
     fn update(self: *Menu) void {
-        if (@mod(frame, 12) == 0) self.blink = !self.blink;
+        if (@mod(frame, 14) == 0) self.blink = !self.blink;
 
         if (released(.e)) startRun();
 
@@ -191,49 +191,50 @@ const Menu = struct {
     fn render(self: *Menu) void {
         renderStars();
 
-        // Title panel: y 26..68, center 47
-        cpanel(35, 26, 170, 42, .{
-            .fill_color = .dark_gray,
-        });
-        textBlockCentered(
-            &.{ "peter.boo", "A FRIENDLY GHOST SHEPHERD" },
-            &.{
-                if (self.blink) .yellow else .orange,
-                .light_gray,
-            },
-            120,
-            30,
-            42,
-            14,
-        );
+        cpanel(35, 26, 170, 42, .{ .fill_color = .black });
+        cpanel(10, 78, 220, 44, .{ .stroke_color = .dark_blue, .stroke_width = 2 });
 
-        // Instructions panel: y 78..122, center 100
-        cpanel(10, 78, 220, 44, .{
-            .fill_color = .dark_blue,
-        });
-        textBlockCentered(
-            &.{
-                "MOVE WITH THE TOUCHPAD",
-                "GET CLOSE TO MAKE GHOSTS FOLLOW",
-                "LEAD THEM TO THEIR MATCHING GRAVE",
-            },
-            &.{ .blue, .cyan, .light_blue },
-            120,
-            84,
-            44,
-            14,
-        );
+        textBlockCentered(&.{
+            "Boo!",
+        }, &.{
+            if (self.blink) .orange else .yellow,
+        }, 121, 23, 42, 14);
+
+        textBlockCentered(&.{
+            "Boo!",
+            "A FRIENDLY GHOST SHEPHERD",
+        }, &.{
+            if (self.blink) .yellow else .orange,
+            .light_gray,
+        }, 120, 30, 42, 14);
+
+        textBlockCentered(&.{
+            "MOVE WITH THE TOUCHPAD",
+            "GET CLOSE TO MAKE GHOSTS FOLLOW",
+            "LEAD THEM TO THEIR MATCHING GRAVE",
+        }, &.{
+            .blue,
+            .cyan,
+            .light_blue,
+        }, 120, 84, 44, 14);
 
         // Prompt, centered in the gap below the panel
         if (self.blink) {
-            textBlockCentered(
-                &.{"PRESS (E) TO START GAME!"},
-                &.{.white},
-                120,
-                122,
-                38,
-                12,
-            );
+            textBlockCentered(&.{
+                "PRESS (E) TO START GAME!",
+            }, &.{
+                .white,
+            }, 120, 122, 38, 12);
+
+            textCentered("PRESS (E) TO START GAME!", 121, 137, .light_gray);
+        } else {
+            textBlockCentered(&.{
+                "PRESS (E) TO START GAME!",
+            }, &.{
+                .light_gray,
+            }, 120, 122, 38, 12);
+
+            textCentered("PRESS (E) TO START GAME!", 121, 137, .gray);
         }
     }
 };
