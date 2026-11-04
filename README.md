@@ -1,16 +1,25 @@
 # peter.boo :ghost:
 
-My entry for the [Firefly Zero Jam #3](https://itch.io/jam/firefly-jam-3) 🎃 
+### My entry for the [Firefly Zero Jam #3](https://itch.io/jam/firefly-jam-3) 🎃 
 
 > [!NOTE]
 > You are a friendly ghost shepherd. Ghosts wander the graveyard at night;
 > when you get close, they follow you. Herd each ghost back to its grave
 > before dawn breaks — when the timer runs out, the sun rises and the night is over.
 
-Using [Zig](https://ziglang.org/) to compile a ROM for use in [Firefly Zero](https://fireflyzero.com/),
+I'm using [Zig](https://ziglang.org/) to compile a ROM for use in [Firefly Zero](https://fireflyzero.com/),
 built on the [ff](https://github.com/peterhellberg/ff) SDK 🎮
 
 ![peter.boo.008-8x](https://play.c7.se/ff/boo/shots/peter.boo.008-8x.png)
+
+> [!TIP]
+> You can run the latest version of [peter.boo](https://catalog.fireflyzero.com/peter.boo)
+> in the Firefly Emulator like this;
+> ```sh
+> PLAY="$(curl https://fireflyzero.com/play.sh)"
+> bash -c "$PLAY" -- peter.boo
+> ```
+
 ![peter.boo.002-8x](https://play.c7.se/ff/boo/shots/peter.boo.002-8x.png)
 ![peter.boo.004-8x](https://play.c7.se/ff/boo/shots/peter.boo.004-8x.png)
 
@@ -47,4 +56,3 @@ zig build spy
     (`setSeed` for reproducible layouts) — no level editor needed.
 - **Persistence:** best times and progress stored with `saveStash`/`loadStash`,
     plus `addScore` (boards) and `addProgress` (badges) where appropriate.
-
